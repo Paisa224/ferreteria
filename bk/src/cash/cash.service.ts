@@ -261,10 +261,8 @@ export class CashService {
   async myOpenSession(userId: number) {
     return this.prisma.cashSession.findFirst({
       where: { opened_by: userId, status: CashSessionStatus.OPEN },
-      include: {
-        cashRegister: true,
-      },
       orderBy: { opened_at: 'desc' },
+      include: { cashRegister: true },
     });
   }
 }

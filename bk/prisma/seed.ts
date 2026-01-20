@@ -19,6 +19,7 @@ async function main() {
     'cash.move',
     'cash.count',
     'pos.sell',
+    'pos.refund',
   ];
 
   for (const key of permissions) {
