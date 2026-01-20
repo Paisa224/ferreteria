@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+.env
+.env.*
+!/\.env\.example
+
+prisma/dev.db
+prisma/dev.db-journal
+
+.DS_Store
+.vscode/
