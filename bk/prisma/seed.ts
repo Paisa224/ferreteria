@@ -13,6 +13,7 @@ async function main() {
   const permissions = [
     'users.manage',
     'inventory.manage',
+    'cash.manage',
     'cash.open',
     'cash.close',
     'pos.sell',

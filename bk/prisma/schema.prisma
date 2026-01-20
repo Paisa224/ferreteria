@@ -18,6 +18,9 @@ model User {
   user_roles    UserRole[]
   refreshTokens RefreshToken[]
 
+  openedCashSessions CashSession[] @relation("CashSessionOpenedBy")
+  closedCashSessions CashSession[] @relation("CashSessionClosedBy")
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -70,4 +73,46 @@ model RefreshToken {
 
   @@index([user_id])
   @@index([expires_at])
+}
+
+enum CashSessionStatus {
+  OPEN
+  CLOSED
+}
+
+model CashRegister {
+  id        Int          @id @default(autoincrement())
+  name      String       @unique
+  is_active Boolean      @default(true)
+
+  sessions  CashSession[]
+
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model CashSession {
+  id               Int              @id @default(autoincrement())
+
+  cash_register_id Int
+  opened_by        Int
+  opened_at        DateTime         @default(now())
+  opening_amount   Decimal          @db.Decimal(12, 2)
+
+  closed_by        Int?
+  closed_at        DateTime?
+  closing_amount   Decimal?         @db.Decimal(12, 2)
+
+  status           CashSessionStatus @default(OPEN)
+
+  cashRegister     CashRegister     @relation(fields: [cash_register_id], references: [id])
+
+  openedByUser     User             @relation("CashSessionOpenedBy", fields: [opened_by], references: [id])
+  closedByUser     User?            @relation("CashSessionClosedBy", fields: [closed_by], references: [id])
+
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([cash_register_id, status])
+  @@index([opened_by, opened_at])
 }
