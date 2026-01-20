@@ -16,6 +16,8 @@ async function main() {
     'cash.manage',
     'cash.open',
     'cash.close',
+    'cash.move',
+    'cash.count',
     'pos.sell',
   ];
 
