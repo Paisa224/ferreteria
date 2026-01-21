@@ -5,6 +5,7 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -23,6 +24,18 @@ export class InventoryController {
   @RequirePermissions('inventory.manage')
   move(@Body() dto: StockMoveDto, @Req() req: any) {
     return this.inv.createStockMovement(dto, req.user.userId);
+  }
+
+  @Get('products/:id/movements')
+  @RequirePermissions('inventory.manage')
+  movements(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const parsedLimit = limit ? Number(limit) : undefined;
+    return this.inv.listProductMovements(id, from, to, parsedLimit);
   }
 
   @Get('products/:id/stock')

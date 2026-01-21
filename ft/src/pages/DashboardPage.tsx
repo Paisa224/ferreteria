@@ -272,7 +272,6 @@ export default function DashboardPage() {
         <table className={s.table}>
           <thead>
             <tr>
-              <th>ID</th>
               <th>Fecha</th>
               <th>Caja</th>
               <th>Total</th>
@@ -282,7 +281,6 @@ export default function DashboardPage() {
           <tbody>
             {(data?.tables?.recent_sales ?? []).map((x: any) => (
               <tr key={x.id}>
-                <td>{x.id}</td>
                 <td>{new Date(x.created_at).toLocaleString()}</td>
                 <td>{x.cash_register ?? "-"}</td>
                 <td>₲ {moneyPY(x.total)}</td>
