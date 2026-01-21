@@ -1,6 +1,7 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { AppShell } from "../layout/AppShell";
+
 import LoginPage from "../pages/LoginPage";
 import DashboardPage from "../pages/DashboardPage";
 import PosPage from "../pages/PosPage";
@@ -14,9 +15,11 @@ export default function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Public */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forbidden" element={<ForbiddenPage />} />
 
+        {/* Private */}
         <Route
           path="/"
           element={
@@ -84,6 +87,9 @@ export default function AppRouter() {
             </ProtectedRoute>
           }
         />
+
+        {/* Catch-all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

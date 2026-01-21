@@ -1,6 +1,6 @@
 import React from "react";
-import "./style/styles.css";
 import ReactDOM from "react-dom/client";
+import "./style/styles.css";
 import AppRouter from "./routing/AppRouter";
 import { useAuthStore } from "./auth/auth.store";
 
@@ -11,6 +11,7 @@ function Boot() {
       .loadMe()
       .catch(() => {});
   }, []);
+
   return <AppRouter />;
 }
 
