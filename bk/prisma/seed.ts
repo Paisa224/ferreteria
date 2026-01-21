@@ -3,14 +3,77 @@ import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
-async function main() {
-  const adminRole = await prisma.role.upsert({
-    where: { name: 'Admin' },
+async function ensurePermissions(keys: string[]) {
+  for (const key of keys) {
+    await prisma.permission.upsert({
+      where: { key },
+      update: {},
+      create: { key },
+    });
+  }
+}
+
+async function setRolePermissions(roleName: string, permissionKeys: string[]) {
+  const role = await prisma.role.upsert({
+    where: { name: roleName },
     update: {},
-    create: { name: 'Admin' },
+    create: { name: roleName },
   });
 
-  const permissions = [
+  const perms = await prisma.permission.findMany({
+    where: { key: { in: permissionKeys } },
+    select: { id: true },
+  });
+
+  await prisma.rolePermission.deleteMany({ where: { role_id: role.id } });
+
+  if (perms.length > 0) {
+    await prisma.rolePermission.createMany({
+      data: perms.map((p) => ({ role_id: role.id, permission_id: p.id })),
+      skipDuplicates: true,
+    });
+  }
+
+  return role;
+}
+
+async function upsertUser(params: {
+  name: string;
+  username: string;
+  ci: string;
+  password: string;
+  is_active?: boolean;
+}) {
+  const password_hash = await bcrypt.hash(params.password, 10);
+
+  return prisma.user.upsert({
+    where: { username: params.username },
+    update: {
+      name: params.name,
+      ci: params.ci,
+      password_hash,
+      is_active: params.is_active ?? true,
+    },
+    create: {
+      name: params.name,
+      username: params.username,
+      ci: params.ci,
+      password_hash,
+      is_active: params.is_active ?? true,
+    },
+  });
+}
+
+async function setUserRole(userId: number, roleId: number) {
+  await prisma.userRole.deleteMany({ where: { user_id: userId } });
+
+  await prisma.userRole.create({
+    data: { user_id: userId, role_id: roleId },
+  });
+}
+
+async function main() {
+  const allPermissions = [
     'users.manage',
     'inventory.manage',
     'cash.manage',
@@ -22,46 +85,57 @@ async function main() {
     'pos.refund',
   ];
 
-  for (const key of permissions) {
-    const perm = await prisma.permission.upsert({
-      where: { key },
-      update: {},
-      create: { key },
-    });
+  await ensurePermissions(allPermissions);
 
-    await prisma.rolePermission.upsert({
-      where: {
-        role_id_permission_id: {
-          role_id: adminRole.id,
-          permission_id: perm.id,
-        },
-      },
-      update: {},
-      create: { role_id: adminRole.id, permission_id: perm.id },
-    });
-  }
+  const superAdminRole = await setRolePermissions(
+    'SUPER_ADMIN',
+    allPermissions,
+  );
 
-  const passwordHash = await bcrypt.hash('Admin1234!', 10);
+  const vendedorPermissions = [
+    'pos.sell',
+    'cash.open',
+    'cash.count',
+    'cash.close',
+    'cash.move',
+  ];
 
-  const user = await prisma.user.upsert({
-    where: { username: 'admin' },
-    update: {},
-    create: {
-      name: 'Administrador',
-      username: 'admin',
-      ci: '0000000',
-      password_hash: passwordHash,
-      is_active: true,
-    },
+  const vendedorRole = await setRolePermissions(
+    'VENDEDOR',
+    vendedorPermissions,
+  );
+
+  const admin = await upsertUser({
+    name: 'Administrador',
+    username: 'admin',
+    ci: '0000000',
+    password: 'Admin1234!',
+    is_active: true,
   });
 
-  await prisma.userRole.upsert({
-    where: { user_id_role_id: { user_id: user.id, role_id: adminRole.id } },
-    update: {},
-    create: { user_id: user.id, role_id: adminRole.id },
+  const superadmin = await upsertUser({
+    name: 'Super Administrador',
+    username: 'superadmin',
+    ci: '1111111',
+    password: 'SuperAdmin1234!',
+    is_active: true,
   });
 
-  console.log('Seed OK: admin / Admin1234!');
+  const vendedor = await upsertUser({
+    name: 'Vendedor',
+    username: 'vendedor',
+    ci: '2222222',
+    password: 'Vendedor1234!',
+    is_active: true,
+  });
+
+  await setUserRole(admin.id, superAdminRole.id);
+  await setUserRole(superadmin.id, superAdminRole.id);
+  await setUserRole(vendedor.id, vendedorRole.id);
+
+  console.log(
+    'Seed OK: roles SUPER_ADMIN / VENDEDOR y usuarios admin, superadmin, vendedor',
+  );
 }
 
 main()
