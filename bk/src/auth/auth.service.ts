@@ -132,6 +132,54 @@ export class AuthService {
     return { access_token: newAccess, refresh_token };
   }
 
+  async me(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        is_active: true,
+        user_roles: {
+          select: {
+            role: {
+              select: {
+                name: true,
+                role_permissions: {
+                  select: {
+                    permission: { select: { key: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user || !user.is_active) {
+      return null;
+    }
+
+    const roles = user.user_roles.map((ur) => ur.role.name);
+
+    const permissions = Array.from(
+      new Set(
+        user.user_roles.flatMap((ur) =>
+          ur.role.role_permissions.map((rp) => rp.permission.key),
+        ),
+      ),
+    ).sort();
+
+    return {
+      userId: user.id,
+      username: user.username,
+      name: user.name,
+      roles,
+      permissions,
+    };
+  }
+
   async logout(refresh_token: string) {
     const tokenHash = this.hashToken(refresh_token);
 

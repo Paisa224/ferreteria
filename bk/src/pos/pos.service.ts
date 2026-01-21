@@ -111,17 +111,63 @@ export class PosService {
     }
 
     const productIds = [...new Set(dto.items.map((i) => i.product_id))];
-    const products = await this.prisma.product.findMany({
-      where: { id: { in: productIds }, is_active: true },
-      select: { id: true },
-    });
-    if (products.length !== productIds.length) {
-      throw new NotFoundException(
-        'Uno o más productos no existen o están inactivos',
-      );
-    }
 
     return this.prisma.$transaction(async (tx) => {
+      const needByProduct = new Map<number, Prisma.Decimal>();
+      for (const it of items) {
+        needByProduct.set(
+          it.product_id,
+          (needByProduct.get(it.product_id) ?? new Prisma.Decimal(0)).plus(
+            it.qty,
+          ),
+        );
+      }
+
+      const productsForStock = await tx.product.findMany({
+        where: { id: { in: productIds }, is_active: true },
+        select: { id: true, track_stock: true },
+      });
+
+      if (productsForStock.length !== productIds.length) {
+        throw new NotFoundException(
+          'Uno o más productos no existen o están inactivos',
+        );
+      }
+
+      const trackedIds = productsForStock
+        .filter((p) => p.track_stock)
+        .map((p) => p.id);
+
+      if (trackedIds.length > 0) {
+        const sums = await tx.stockMovement.groupBy({
+          by: ['product_id', 'type'],
+          where: { product_id: { in: trackedIds } },
+          _sum: { qty: true },
+        });
+
+        const getSum = (productId: number, type: any) => {
+          const row = sums.find(
+            (s) => s.product_id === productId && s.type === type,
+          );
+          return row?._sum.qty ?? new Prisma.Decimal(0);
+        };
+
+        for (const pid of trackedIds) {
+          const stock = getSum(pid, 'IN')
+            .plus(getSum(pid, 'ADJUST'))
+            .plus(getSum(pid, 'RETURN'))
+            .minus(getSum(pid, 'OUT'))
+            .minus(getSum(pid, 'SALE'));
+
+          const needed = needByProduct.get(pid) ?? new Prisma.Decimal(0);
+
+          if (stock.lt(needed)) {
+            throw new BadRequestException(
+              `Stock insuficiente para product_id=${pid}. Disponible=${stock.toString()} Necesario=${needed.toString()}`,
+            );
+          }
+        }
+      }
       const sale = await tx.sale.create({
         data: {
           cash_session_id: cashSession.id,
