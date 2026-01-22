@@ -1,10 +1,4 @@
-import {
-  IsBoolean,
-  IsNumber,
-  IsOptional,
-  IsString,
-  Min,
-} from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class UpdateProductDto {
   @IsOptional()
@@ -24,12 +18,12 @@ export class UpdateProductDto {
   unit?: string | null;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(0)
   cost?: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(0)
   price?: number;
 

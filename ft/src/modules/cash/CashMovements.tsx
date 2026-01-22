@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { CashMovement, CashMovementDto } from "./cash.types";
 import { formatDateTime, formatMoney } from "./cash.utils";
+import { formatMoneyGs, parseMoneyGs } from "../../utils/money";
 import s from "./CashMovements.module.css";
 
 type Props = {
@@ -27,7 +28,7 @@ export function CashMovements({ movements, onAdd, loading, error }: Props) {
       setLocalError("El concepto debe tener al menos 3 caracteres.");
       return;
     }
-    const value = Number(amount);
+    const value = parseMoneyGs(amount);
     if (Number.isNaN(value) || value <= 0) {
       setLocalError("El monto debe ser mayor a 0.");
       return;
@@ -75,11 +76,11 @@ export function CashMovements({ movements, onAdd, loading, error }: Props) {
           <label>
             Monto
             <input
-              type="number"
-              min={0}
-              step={0.01}
+              type="text"
+              inputMode="numeric"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              onBlur={() => setAmount(formatMoneyGs(parseMoneyGs(amount)))}
             />
           </label>
           <label>

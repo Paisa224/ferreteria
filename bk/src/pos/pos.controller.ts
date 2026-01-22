@@ -51,6 +51,13 @@ export class PosController {
     return this.pos.createSale(dto, req.user.userId);
   }
 
+  @Get('pos/sales/recent')
+  @RequireAnyPermissions('pos.sell', 'cash.manage')
+  listRecentSales(@Query('limit') limit?: string) {
+    const parsed = Number.parseInt(limit ?? '30', 10);
+    return this.pos.listRecentSales(Number.isFinite(parsed) ? parsed : 30);
+  }
+
   @Get('pos/sales/:id')
   @RequirePermissions('pos.sell')
   getSale(@Param('id', ParseIntPipe) id: number) {

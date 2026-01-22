@@ -1,12 +1,6 @@
-export function formatMoney(value: string | number | null | undefined) {
-  if (value === null || value === undefined) return "-";
-  const n = Number(value);
-  if (Number.isNaN(n)) return String(value);
-  return new Intl.NumberFormat("es-PY", {
-    minimumFractionDigits: n % 1 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  }).format(n);
-}
+import { formatMoneyGs } from "../../utils/money";
+
+export const formatMoney = formatMoneyGs;
 
 export function formatDateTime(value: string | null | undefined) {
   if (!value) return "-";

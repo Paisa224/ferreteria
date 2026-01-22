@@ -1,4 +1,4 @@
-import { IsIn, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreateCashMovementDto {
   @IsIn(['IN', 'OUT'])
@@ -7,8 +7,8 @@ export class CreateCashMovementDto {
   @IsString()
   concept: string;
 
-  @IsNumber()
-  @Min(0.01)
+  @IsInt()
+  @Min(1)
   amount: number;
 
   @IsOptional()

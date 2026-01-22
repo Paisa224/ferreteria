@@ -1,8 +1,8 @@
-import { IsNumber, IsOptional, Min } from 'class-validator';
+import { IsInt, IsOptional, Min } from 'class-validator';
 
 export class CloseCashSessionDto {
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(0)
   closing_amount?: number;
 }

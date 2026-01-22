@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { CashRegister, OpenSessionDto } from "./cash.types";
+import { formatMoneyGs, parseMoneyGs } from "../../utils/money";
 import s from "./CashOpenForm.module.css";
 
 type Props = {
@@ -24,7 +25,7 @@ export function CashOpenForm({ registers, onOpen, loading, error }: Props) {
     setLocalError(null);
 
     const register = Number(registerId);
-    const amount = Number(openingAmount);
+    const amount = parseMoneyGs(openingAmount);
 
     if (!registerId || Number.isNaN(register)) {
       setLocalError("Seleccioná una caja válida.");
@@ -63,11 +64,13 @@ export function CashOpenForm({ registers, onOpen, loading, error }: Props) {
         <label>
           Monto de apertura
           <input
-            type="number"
-            min={0}
-            step={0.01}
+            type="text"
+            inputMode="numeric"
             value={openingAmount}
             onChange={(e) => setOpeningAmount(e.target.value)}
+            onBlur={() =>
+              setOpeningAmount(formatMoneyGs(parseMoneyGs(openingAmount)))
+            }
           />
         </label>
       </div>

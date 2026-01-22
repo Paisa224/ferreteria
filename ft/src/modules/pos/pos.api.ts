@@ -17,3 +17,15 @@ export async function createSale(dto: CreateSaleDto): Promise<SaleResponse> {
   const { data } = await http.post("/pos/sales", dto);
   return data;
 }
+
+export async function listRecentSales(limit = 30): Promise<SaleResponse[]> {
+  const { data } = await http.get("/pos/sales/recent", {
+    params: { limit },
+  });
+  return data;
+}
+
+export async function getSale(id: number): Promise<SaleResponse> {
+  const { data } = await http.get(`/pos/sales/${id}`);
+  return data;
+}

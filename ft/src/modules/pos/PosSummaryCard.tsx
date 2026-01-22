@@ -1,4 +1,4 @@
-import { formatMoney } from "./pos.utils";
+import { formatMoney, parseMoney } from "./pos.utils";
 import s from "./PosSummaryCard.module.css";
 
 type Props = {
@@ -23,11 +23,11 @@ export function PosSummaryCard({
       <div>
         <div className={s.label}>Descuento</div>
         <input
-          type="number"
-          min={0}
-          step={0.01}
-          value={discount}
-          onChange={(e) => onDiscountChange(Number(e.target.value))}
+          type="text"
+          inputMode="numeric"
+          value={formatMoney(discount)}
+          onChange={(e) => onDiscountChange(parseMoney(e.target.value))}
+          onBlur={(e) => onDiscountChange(parseMoney(e.currentTarget.value))}
         />
       </div>
       <div>

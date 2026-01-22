@@ -1,8 +1,8 @@
 import { Transform } from 'class-transformer';
 import {
   IsBoolean,
+  IsInt,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsString,
   Min,
@@ -35,11 +35,11 @@ export class CreateProductDto {
   @Transform(({ value }) => trimToNull(value))
   unit?: string | null;
 
-  @IsNumber()
+  @IsInt()
   @Min(0)
   cost: number;
 
-  @IsNumber()
+  @IsInt()
   @Min(0)
   price: number;
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CreateProductDto, Product, UpdateProductDto } from "./types";
+import { formatMoneyGs, parseMoneyGs } from "../../utils/money";
 import s from "./ProductForm.module.css";
 
 type Props = {
@@ -9,15 +10,6 @@ type Props = {
   loading?: boolean;
   error?: string | null;
 };
-
-function formatNumber(value: any) {
-  const n = Number(value ?? 0);
-  if (Number.isNaN(n)) return String(value ?? "");
-  return new Intl.NumberFormat("es-PY", {
-    minimumFractionDigits: n % 1 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  }).format(n);
-}
 
 export function ProductForm({ product, onSave, onNew, loading, error }: Props) {
   const [name, setName] = useState("");
@@ -52,8 +44,8 @@ export function ProductForm({ product, onSave, onNew, loading, error }: Props) {
   }, [product]);
 
   const priceWarning = useMemo(() => {
-    const c = Number(cost);
-    const p = Number(price);
+    const c = parseMoneyGs(cost);
+    const p = parseMoneyGs(price);
     if (Number.isNaN(c) || Number.isNaN(p)) return null;
     if (p < c) return "El precio es menor que el costo";
     return null;
@@ -70,8 +62,8 @@ export function ProductForm({ product, onSave, onNew, loading, error }: Props) {
       sku: sku.trim() ? sku.trim() : null,
       barcode: barcode.trim() ? barcode.trim() : null,
       unit: unit.trim() ? unit.trim() : null,
-      cost: Number(cost || 0),
-      price: Number(price || 0),
+      cost: parseMoneyGs(cost),
+      price: parseMoneyGs(price),
       track_stock: trackStock,
       is_active: isActive,
     };
@@ -143,21 +135,21 @@ export function ProductForm({ product, onSave, onNew, loading, error }: Props) {
         <label className={s.label}>
           Costo
           <input
-            type="number"
-            min={0}
-            step={0.01}
+            type="text"
+            inputMode="numeric"
             value={cost}
             onChange={(e) => setCost(e.target.value)}
+            onBlur={() => setCost(formatMoneyGs(parseMoneyGs(cost)))}
           />
         </label>
         <label className={s.label}>
           Precio
           <input
-            type="number"
-            min={0}
-            step={0.01}
+            type="text"
+            inputMode="numeric"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
+            onBlur={() => setPrice(formatMoneyGs(parseMoneyGs(price)))}
           />
           {priceWarning && <span className={s.warning}>{priceWarning}</span>}
         </label>
@@ -185,11 +177,15 @@ export function ProductForm({ product, onSave, onNew, loading, error }: Props) {
       <div className={`${s.summary} ${priceWarning ? s.summaryWarn : ""}`}>
         <div>
           <div className={s.summaryLabel}>Precio actual</div>
-          <div className={s.summaryValue}>₲ {formatNumber(price)}</div>
+          <div className={s.summaryValue}>
+            ₲ {formatMoneyGs(parseMoneyGs(price))}
+          </div>
         </div>
         <div>
           <div className={s.summaryLabel}>Costo actual</div>
-          <div className={s.summaryValue}>₲ {formatNumber(cost)}</div>
+          <div className={s.summaryValue}>
+            ₲ {formatMoneyGs(parseMoneyGs(cost))}
+          </div>
         </div>
       </div>
 

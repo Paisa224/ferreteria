@@ -1,4 +1,5 @@
 import type { Product } from "./types";
+import { formatMoneyGs } from "../../utils/money";
 import s from "./ProductsTable.module.css";
 
 type Props = {
@@ -7,15 +8,6 @@ type Props = {
   onSelect: (product: Product) => void;
   onToggleActive: (product: Product) => void;
 };
-
-function formatNumber(value: string | number) {
-  const n = Number(value);
-  if (Number.isNaN(n)) return String(value);
-  return new Intl.NumberFormat("es-PY", {
-    minimumFractionDigits: n % 1 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  }).format(n);
-}
 
 export function ProductsTable({
   products,
@@ -50,8 +42,8 @@ export function ProductsTable({
             </td>
             <td>{p.sku ?? "-"}</td>
             <td>{p.barcode ?? "-"}</td>
-            <td>₲ {formatNumber(p.price)}</td>
-            <td>₲ {formatNumber(p.cost)}</td>
+            <td>₲ {formatMoneyGs(p.price)}</td>
+            <td>₲ {formatMoneyGs(p.cost)}</td>
             <td>{p.track_stock ? "Sí" : "No"}</td>
             <td>
               <span

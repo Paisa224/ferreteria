@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { listPosProducts, createSale, getProductStock } from "./pos.api";
+import {
+  createSale,
+  getProductStock,
+  listPosProducts,
+  listRecentSales,
+} from "./pos.api";
 import type {
   CartItem,
   PaymentLine,
@@ -8,8 +13,11 @@ import type {
 } from "./pos.types";
 import {
   formatMoney,
+  formatQty,
   parseError,
+  parseMoney,
   paymentMethodLabel,
+  qtyStep,
   roundQty,
 } from "./pos.utils";
 import { ProductSearch } from "./ProductSearch";
@@ -24,8 +32,7 @@ import {
 } from "./receipt";
 import s from "./PosWorkspace.module.css";
 
-const MIN_QTY = 0.001;
-const EPS = 0.01;
+const EPS = 0;
 
 type Props = {
   className?: string;
@@ -48,6 +55,9 @@ export function PosWorkspace({ className, showHeader = true }: Props) {
     received: number;
     change: number;
   } | null>(null);
+  const [recentSales, setRecentSales] = useState<SaleResponse[]>([]);
+  const [selectedSaleId, setSelectedSaleId] = useState<number | null>(null);
+  const [showSaleDetail, setShowSaleDetail] = useState(false);
   const [paymentMethod, setPaymentMethod] =
     useState<PaymentLine["method"]>("CASH");
   const [cashReceived, setCashReceived] = useState("");
@@ -66,22 +76,31 @@ export function PosWorkspace({ className, showHeader = true }: Props) {
     searchProducts("");
   }, []);
 
+  useEffect(() => {
+    refreshRecentSales();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const subtotal = useMemo(
     () => cart.reduce((acc, item) => acc + item.qty * item.price, 0),
     [cart],
   );
+  const subtotalRounded = useMemo(() => Math.round(subtotal), [subtotal]);
 
   const discountClamped = useMemo(() => {
     if (Number.isNaN(discount)) return 0;
-    return Math.min(Math.max(discount, 0), subtotal);
-  }, [discount, subtotal]);
+    return Math.min(Math.max(discount, 0), subtotalRounded);
+  }, [discount, subtotalRounded]);
 
   const total = useMemo(
-    () => subtotal - discountClamped,
-    [subtotal, discountClamped],
+    () => Math.max(subtotalRounded - discountClamped, 0),
+    [subtotalRounded, discountClamped],
   );
 
-  const received = useMemo(() => Number(cashReceived) || 0, [cashReceived]);
+  const received = useMemo(
+    () => parseMoney(cashReceived) || 0,
+    [cashReceived],
+  );
 
   const change = useMemo(() => {
     if (paymentMethod !== "CASH") return 0;
@@ -119,6 +138,7 @@ export function PosWorkspace({ className, showHeader = true }: Props) {
 
     const existing = cart.find((c) => c.product.id === product.id);
     let stockValue: number | null = null;
+    const step = qtyStep(product.unit);
 
     if (product.track_stock) {
       try {
@@ -130,7 +150,7 @@ export function PosWorkspace({ className, showHeader = true }: Props) {
     }
 
     if (existing) {
-      const nextQty = roundQty(existing.qty + MIN_QTY);
+      const nextQty = roundQty(existing.qty + step, product.unit);
       if (product.track_stock && stockValue !== null && nextQty > stockValue) {
         setErr(
           `Stock insuficiente para ${product.name}. Disponible: ${formatMoney(stockValue)}`,
@@ -149,7 +169,7 @@ export function PosWorkspace({ className, showHeader = true }: Props) {
       ...prev,
       {
         product,
-        qty: MIN_QTY,
+        qty: step,
         price: Number(product.price),
         stock: stockValue,
       },
@@ -157,8 +177,11 @@ export function PosWorkspace({ className, showHeader = true }: Props) {
   }
 
   function changeQty(id: number, qty: number) {
-    const value = roundQty(qty);
-    if (Number.isNaN(value) || value < MIN_QTY) return;
+    const item = cart.find((c) => c.product.id === id);
+    const unit = item?.product.unit;
+    const minQty = qtyStep(unit);
+    const value = roundQty(qty, unit);
+    if (Number.isNaN(value) || value < minQty) return;
 
     setCart((prev) =>
       prev.map((c) => {
@@ -199,6 +222,26 @@ export function PosWorkspace({ className, showHeader = true }: Props) {
       setSuccess(null);
       setLastSale(null);
       setLastCashMeta(null);
+      setSelectedSaleId(null);
+    }
+  }
+
+  function updateRecentSales(sale: SaleResponse) {
+    setRecentSales((prev) => {
+      const filtered = prev.filter((s) => s.id !== sale.id);
+      return [sale, ...filtered].slice(0, 50);
+    });
+  }
+
+  async function refreshRecentSales() {
+    try {
+      const res = await listRecentSales(30);
+      setRecentSales(res);
+      if (res.length > 0 && selectedSaleId === null) {
+        setSelectedSaleId(res[0].id);
+      }
+    } catch (e) {
+      console.warn("No se pudieron cargar ventas recientes", e);
     }
   }
 
@@ -237,6 +280,9 @@ export function PosWorkspace({ className, showHeader = true }: Props) {
       }
       resetSale(false);
       setLastSale(res);
+      setSelectedSaleId(res.id);
+      updateRecentSales(res);
+      refreshRecentSales();
       setSuccess(`Venta OK #${res.id}`);
     } catch (e: any) {
       const message = parseError(e);
@@ -250,17 +296,21 @@ export function PosWorkspace({ className, showHeader = true }: Props) {
     }
   }
 
-  function handlePrint() {
-    if (!lastSale) return;
+  function handlePrintSale(sale: SaleResponse, includeCashMeta?: boolean) {
     const settings = getReceiptSettings();
     const html = buildReceiptHtml(
-      lastSale,
+      sale,
       settings,
       cashier,
-      lastCashMeta ?? undefined,
+      includeCashMeta ? lastCashMeta ?? undefined : undefined,
     );
     openReceiptWindow(html);
   }
+
+  const selectedSale = useMemo(() => {
+    if (lastSale && lastSale.id === selectedSaleId) return lastSale;
+    return recentSales.find((s) => s.id === selectedSaleId) ?? lastSale;
+  }, [lastSale, recentSales, selectedSaleId]);
 
   return (
     <div className={`${s.root} ${className ?? ""}`}>
@@ -296,25 +346,6 @@ export function PosWorkspace({ className, showHeader = true }: Props) {
 
       {err && <div className={`card ${s.error}`}>{err}</div>}
 
-      {success && lastSale && (
-        <div className="card">
-          <div className={s.successRow}>
-            <div>
-              <div className="h1">Venta confirmada</div>
-              <div className="muted">{success}</div>
-            </div>
-            <div className={s.successActions}>
-              <button className="btn primary" onClick={handlePrint}>
-                Imprimir ticket
-              </button>
-              <button className="btn" onClick={() => resetSale(true)}>
-                Nueva venta
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className={s.body}>
         <section className={`${s.column} ${s.scroll}`}>
           <div className="card">
@@ -342,12 +373,180 @@ export function PosWorkspace({ className, showHeader = true }: Props) {
             </div>
           </div>
         </section>
+
+        <section className={s.column}>
+          <div className={`${s.stack} ${s.scroll}`}>
+            <div className="card">
+              <h2 className="h1">Post-venta</h2>
+              <div className="muted">
+                Última venta, impresión y reimpresiones rápidas.
+              </div>
+
+              <div className={s.postSection}>
+                <div className={s.sectionTitle}>Última venta</div>
+                {lastSale ? (
+                  <div className={s.lastSaleSummary}>
+                    <div>
+                      <div className={s.saleTitle}>
+                        Venta #{lastSale.id}
+                      </div>
+                      <div className="muted">
+                        {new Date(lastSale.created_at).toLocaleString()} · ₲{" "}
+                        {formatMoney(lastSale.total)}
+                      </div>
+                      <div className="muted">
+                        {paymentMethodLabel(
+                          lastSale.payments?.[0]?.method ?? "CASH",
+                        )}
+                        {lastSale.createdByUser?.username
+                          ? ` · ${lastSale.createdByUser.username}`
+                          : ""}
+                      </div>
+                      {success && <div className="muted">{success}</div>}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="muted">Sin ventas registradas todavía.</div>
+                )}
+
+                <div className={s.actionRow}>
+                  <button
+                    className="btn primary"
+                    onClick={() =>
+                      lastSale && handlePrintSale(lastSale, true)
+                    }
+                    disabled={!lastSale}
+                  >
+                    Imprimir ticket
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={() => setShowSaleDetail((prev) => !prev)}
+                    disabled={!selectedSale}
+                  >
+                    {showSaleDetail ? "Ocultar detalle" : "Ver detalle"}
+                  </button>
+                  <button className="btn" onClick={() => resetSale(true)}>
+                    Nueva venta
+                  </button>
+                </div>
+              </div>
+
+              <div className={s.postSection}>
+                <div className={s.sectionTitle}>Histórico</div>
+                {recentSales.length === 0 ? (
+                  <div className="muted">Sin ventas recientes.</div>
+                ) : (
+                  <div className={s.saleList}>
+                    {recentSales.map((sale) => {
+                      const active = sale.id === selectedSale?.id;
+                      const payment = sale.payments?.[0]?.method ?? "CASH";
+                      return (
+                        <div
+                          key={sale.id}
+                          className={`${s.saleItem} ${active ? s.saleItemActive : ""}`}
+                          onClick={() => {
+                            setSelectedSaleId(sale.id);
+                            setShowSaleDetail(true);
+                          }}
+                          role="button"
+                        >
+                          <div>
+                            <div className={s.saleTitle}>
+                              #{sale.id} ·{" "}
+                              {new Date(sale.created_at).toLocaleString()}
+                            </div>
+                            <div className="muted">
+                              ₲ {formatMoney(sale.total)} ·{" "}
+                              {paymentMethodLabel(payment)}
+                              {sale.createdByUser?.username
+                                ? ` · ${sale.createdByUser.username}`
+                                : ""}
+                            </div>
+                          </div>
+                          <div className={s.saleActions}>
+                            <button
+                              className="btn"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePrintSale(sale);
+                              }}
+                            >
+                              Reimprimir
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {showSaleDetail && selectedSale && (
+                <div className={s.detailCard}>
+                  <div className={s.sectionTitle}>
+                    Detalle #{selectedSale.id}
+                  </div>
+                  <div className="muted">
+                    {new Date(selectedSale.created_at).toLocaleString()} · ₲{" "}
+                    {formatMoney(selectedSale.total)}
+                  </div>
+                  <div className={s.detailMeta}>
+                    {(selectedSale.payments ?? []).map((p) => (
+                      <div key={p.id}>
+                        {paymentMethodLabel(p.method)}: ₲{" "}
+                        {formatMoney(p.amount)}
+                        {p.reference ? ` · ${p.reference}` : ""}
+                      </div>
+                    ))}
+                  </div>
+
+                  <table className={s.detailTable}>
+                    <thead>
+                      <tr>
+                        <th>Item</th>
+                        <th>Cant.</th>
+                        <th>Precio</th>
+                        <th>Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(selectedSale.items ?? []).map((item) => (
+                        <tr key={item.id}>
+                          <td>{item.product?.name ?? item.product_id}</td>
+                          <td>
+                            {formatQty(
+                              Number(item.qty),
+                              item.product?.unit ?? null,
+                            )}
+                          </td>
+                          <td>₲ {formatMoney(item.price)}</td>
+                          <td>₲ {formatMoney(item.subtotal)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <div className={s.actionRow}>
+                    <button
+                      className="btn"
+                      onClick={() => handlePrintSale(selectedSale)}
+                    >
+                      Imprimir ticket
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
       </div>
 
       <footer className={s.footer}>
         <div className="card">
           <PosSummaryCard
-            subtotal={subtotal}
+            subtotal={subtotalRounded}
             discount={discountClamped}
             total={total}
             onDiscountChange={setDiscount}
@@ -397,11 +596,13 @@ export function PosWorkspace({ className, showHeader = true }: Props) {
               <label>
                 Recibido
                 <input
-                  type="number"
-                  min={0}
-                  step={0.01}
+                  type="text"
+                  inputMode="numeric"
                   value={cashReceived}
                   onChange={(e) => setCashReceived(e.target.value)}
+                  onBlur={() =>
+                    setCashReceived(formatMoney(parseMoney(cashReceived)))
+                  }
                 />
               </label>
             ) : (

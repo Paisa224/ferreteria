@@ -1,5 +1,5 @@
 import type { CartItem } from "./pos.types";
-import { formatMoney, roundQty } from "./pos.utils";
+import { formatMoney, parseMoney, qtyStep, roundQty } from "./pos.utils";
 import s from "./Cart.module.css";
 
 type Props = {
@@ -35,6 +35,7 @@ export function Cart({
       <tbody>
         {items.map((item) => {
           const subtotal = item.qty * item.price;
+          const step = qtyStep(item.product.unit);
 
           return (
             <tr key={item.product.id}>
@@ -53,12 +54,17 @@ export function Cart({
               <td>
                 {canOverridePrice ? (
                   <input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    value={item.price}
+                    type="text"
+                    inputMode="numeric"
+                    value={formatMoney(item.price)}
                     onChange={(e) =>
-                      onChangePrice?.(item.product.id, Number(e.target.value))
+                      onChangePrice?.(item.product.id, parseMoney(e.target.value))
+                    }
+                    onBlur={(e) =>
+                      onChangePrice?.(
+                        item.product.id,
+                        parseMoney(e.currentTarget.value),
+                      )
                     }
                   />
                 ) : (
@@ -71,7 +77,7 @@ export function Cart({
                   className="btn"
                   type="button"
                   onClick={() =>
-                    onChangeQty(item.product.id, roundQty(item.qty - 0.001))
+                    onChangeQty(item.product.id, roundQty(item.qty - step, item.product.unit))
                   }
                 >
                   -
@@ -79,8 +85,8 @@ export function Cart({
 
                 <input
                   type="number"
-                  min={0.001}
-                  step={0.001}
+                  min={step}
+                  step={step}
                   value={item.qty}
                   onChange={(e) =>
                     onChangeQty(item.product.id, Number(e.target.value))
@@ -91,7 +97,7 @@ export function Cart({
                   className="btn"
                   type="button"
                   onClick={() =>
-                    onChangeQty(item.product.id, roundQty(item.qty + 0.001))
+                    onChangeQty(item.product.id, roundQty(item.qty + step, item.product.unit))
                   }
                 >
                   +
