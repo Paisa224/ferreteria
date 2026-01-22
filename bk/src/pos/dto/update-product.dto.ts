@@ -14,7 +14,13 @@ function trimToNull(v: unknown) {
   return s.length ? s : null;
 }
 
-export class CreateProductDto {
+export class UpdateProductDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @Transform(({ value }) => String(value ?? '').trim())
+  name?: string;
+
   @IsOptional()
   @IsString()
   @Transform(({ value }) => trimToNull(value))
@@ -25,23 +31,20 @@ export class CreateProductDto {
   @Transform(({ value }) => trimToNull(value))
   barcode?: string | null;
 
-  @IsString()
-  @IsNotEmpty()
-  @Transform(({ value }) => String(value ?? '').trim())
-  name: string;
-
   @IsOptional()
   @IsString()
   @Transform(({ value }) => trimToNull(value))
   unit?: string | null;
 
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  cost: number;
+  cost?: number;
 
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  price: number;
+  price?: number;
 
   @IsOptional()
   @IsBoolean()

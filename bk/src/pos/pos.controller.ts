@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -14,6 +15,7 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { RequirePermissions } from '../auth/require-permissions.decorator';
 import { CreateProductDto } from './dto/create-product.dto';
 import { CreateSaleDto } from './dto/create-sale.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 import { PosService } from './pos.service';
 
 @Controller()
@@ -31,6 +33,15 @@ export class PosController {
   @RequirePermissions('inventory.manage')
   listProducts(@Query('q') q?: string) {
     return this.pos.listProducts(q);
+  }
+
+  @Patch('products/:id')
+  @RequirePermissions('inventory.manage')
+  updateProduct(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateProductDto,
+  ) {
+    return this.pos.updateProduct(id, dto);
   }
 
   @Post('pos/sales')

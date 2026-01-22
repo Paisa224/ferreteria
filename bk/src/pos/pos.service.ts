@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -12,23 +13,52 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { CreateSaleDto } from './dto/create-sale.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 
 @Injectable()
 export class PosService {
   constructor(private prisma: PrismaService) {}
 
+  private mapUniqueError(e: Prisma.PrismaClientKnownRequestError) {
+    const target = (e.meta as any)?.target;
+    const t = Array.isArray(target) ? target.join(',') : String(target ?? '');
+
+    if (t.includes('Product_sku_key') || t.toLowerCase().includes('sku')) {
+      return new ConflictException('El SKU Ingresado ya existe');
+    }
+    if (
+      t.includes('Product_barcode_key') ||
+      t.toLowerCase().includes('barcode')
+    ) {
+      return new ConflictException('Código de barras ya existe');
+    }
+
+    return new ConflictException('Ya existe un valor único');
+  }
+
   async createProduct(dto: CreateProductDto) {
-    return this.prisma.product.create({
-      data: {
-        sku: dto.sku?.trim() || null,
-        barcode: dto.barcode?.trim() || null,
-        name: dto.name.trim(),
-        unit: dto.unit?.trim() || null,
-        cost: new Prisma.Decimal(dto.cost),
-        price: new Prisma.Decimal(dto.price),
-        is_active: dto.is_active ?? true,
-      },
-    });
+    try {
+      return await this.prisma.product.create({
+        data: {
+          sku: dto.sku ?? null,
+          barcode: dto.barcode ?? null,
+          name: dto.name.trim(),
+          unit: dto.unit ?? null,
+          cost: new Prisma.Decimal(dto.cost),
+          price: new Prisma.Decimal(dto.price),
+          track_stock: dto.track_stock ?? true,
+          is_active: dto.is_active ?? true,
+        },
+      });
+    } catch (e: any) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        throw this.mapUniqueError(e);
+      }
+      throw e;
+    }
   }
 
   async listProducts(q?: string) {
@@ -46,6 +76,39 @@ export class PosService {
       where,
       orderBy: { id: 'asc' },
     });
+  }
+
+  async updateProduct(id: number, dto: UpdateProductDto) {
+    const exists = await this.prisma.product.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!exists) throw new NotFoundException('Producto no encontrado');
+
+    const data: Prisma.ProductUpdateInput = {};
+    if (dto.name !== undefined) data.name = dto.name.trim();
+    if (dto.sku !== undefined) data.sku = dto.sku ?? null;
+    if (dto.barcode !== undefined) data.barcode = dto.barcode ?? null;
+    if (dto.unit !== undefined) data.unit = dto.unit ?? null;
+    if (dto.cost !== undefined) data.cost = new Prisma.Decimal(dto.cost);
+    if (dto.price !== undefined) data.price = new Prisma.Decimal(dto.price);
+    if (dto.track_stock !== undefined) data.track_stock = dto.track_stock;
+    if (dto.is_active !== undefined) data.is_active = dto.is_active;
+
+    try {
+      return await this.prisma.product.update({
+        where: { id },
+        data,
+      });
+    } catch (e: any) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        throw this.mapUniqueError(e);
+      }
+      throw e;
+    }
   }
 
   private async getMyOpenCashSession(userId: number) {
@@ -168,6 +231,7 @@ export class PosService {
           }
         }
       }
+
       const sale = await tx.sale.create({
         data: {
           cash_session_id: cashSession.id,
