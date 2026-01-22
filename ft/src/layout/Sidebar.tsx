@@ -36,7 +36,11 @@ export function Sidebar() {
         {can("pos.sell") && <LinkItem to="/pos" label="POS Ventas" />}
 
         {(can("cash.open") || can("cash.count") || can("cash.close")) && (
-          <LinkItem to="/cash" label="Caja" />
+          <LinkItem to="/cash" label="Apertura de Caja" />
+        )}
+
+        {can("cash.manage") && (
+          <LinkItem to="/cash/registers" label="Creacion de Cajas" />
         )}
 
         {can("inventory.manage") && (

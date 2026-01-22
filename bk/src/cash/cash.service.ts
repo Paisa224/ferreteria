@@ -62,6 +62,7 @@ export class CashService {
 
     const register = await this.prisma.cashRegister.findUnique({
       where: { id: dto.cash_register_id },
+      select: { id: true, is_active: true, name: true },
     });
     if (!register || !register.is_active) {
       throw new NotFoundException('Caja no encontrada o inactiva');
@@ -72,12 +73,21 @@ export class CashService {
         cash_register_id: dto.cash_register_id,
         status: CashSessionStatus.OPEN,
       },
-      select: { id: true },
+      include: {
+        openedByUser: { select: { id: true, username: true, name: true } },
+        cashRegister: { select: { id: true, name: true } },
+      },
     });
+
     if (existingOpen) {
-      throw new BadRequestException(
-        'Ya existe una sesión abierta para esta caja',
-      );
+      throw new ConflictException({
+        message: 'Ya existe una sesión abierta para esta caja.',
+        open_session_id: existingOpen.id,
+        cash_register_id: existingOpen.cash_register_id,
+        opened_at: existingOpen.opened_at,
+        opened_by: existingOpen.openedByUser,
+        cash_register: existingOpen.cashRegister,
+      });
     }
 
     return this.prisma.cashSession.create({
@@ -86,6 +96,10 @@ export class CashService {
         opened_by: userId,
         opening_amount: new Prisma.Decimal(dto.opening_amount),
         status: CashSessionStatus.OPEN,
+      },
+      include: {
+        cashRegister: true,
+        openedByUser: { select: { id: true, username: true, name: true } },
       },
     });
   }
@@ -113,24 +127,21 @@ export class CashService {
     if (session.status !== CashSessionStatus.OPEN)
       throw new BadRequestException('La sesión ya está cerrada');
 
-    let closingAmount = dto.closing_amount;
-    let closedWithCountId: number | undefined = undefined;
+    const lastCount = await this.prisma.cashCount.findFirst({
+      where: { cash_session_id: sessionId },
+      orderBy: { counted_at: 'desc' },
+    });
 
-    if (closingAmount === undefined) {
-      const lastCount = await this.prisma.cashCount.findFirst({
-        where: { cash_session_id: sessionId },
-        orderBy: { counted_at: 'desc' },
-      });
-
-      if (!lastCount) {
-        throw new BadRequestException(
-          'Se requiere un arqueo antes de cerrar la sesión',
-        );
-      }
-
-      closingAmount = lastCount.total_counted.toNumber();
-      closedWithCountId = lastCount.id;
+    if (!lastCount) {
+      throw new BadRequestException(
+        'Se requiere un arqueo antes de cerrar la sesión',
+      );
     }
+
+    const closingAmount =
+      dto.closing_amount !== undefined
+        ? dto.closing_amount
+        : lastCount.total_counted.toNumber();
 
     return this.prisma.cashSession.update({
       where: { id: sessionId },
@@ -139,7 +150,7 @@ export class CashService {
         closed_by: userId,
         closed_at: new Date(),
         closing_amount: new Prisma.Decimal(closingAmount ?? 0),
-        closed_with_cash_count_id: closedWithCountId,
+        closed_with_cash_count_id: lastCount.id,
       },
     });
   }

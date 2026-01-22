@@ -6,6 +6,7 @@ import LoginPage from "../pages/LoginPage";
 import DashboardPage from "../pages/DashboardPage";
 import PosPage from "../pages/PosPage";
 import CashPage from "../pages/CashPage";
+import CashRegistersPage from "../pages/CashRegistersPage";
 import ProductsPage from "../pages/ProductsPage";
 import InventoryPage from "../pages/InventoryPage";
 import UsersPage from "../pages/UsersPage";
@@ -15,11 +16,9 @@ export default function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forbidden" element={<ForbiddenPage />} />
 
-        {/* Private */}
         <Route
           path="/"
           element={
@@ -50,6 +49,17 @@ export default function AppRouter() {
             >
               <AppShell>
                 <CashPage />
+              </AppShell>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/cash/registers"
+          element={
+            <ProtectedRoute requiredAny={["cash.manage"]}>
+              <AppShell>
+                <CashRegistersPage />
               </AppShell>
             </ProtectedRoute>
           }
@@ -88,7 +98,6 @@ export default function AppRouter() {
           }
         />
 
-        {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

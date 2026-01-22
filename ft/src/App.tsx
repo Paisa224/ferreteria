@@ -37,7 +37,6 @@ export default function App() {
   }
 
   async function loadMyOpenCash() {
-    // si no tenés este endpoint, decime y lo adaptamos a /cash/sessions/current
     const res = await api.get("/cash/sessions/my-open");
     setCashSession(res.data ?? null);
   }
