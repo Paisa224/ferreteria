@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { AppShell } from "../layout/AppShell";
+import { HomeRedirect } from "./HomeRedirect";
 
 import LoginPage from "../pages/LoginPage";
 import DashboardPage from "../pages/DashboardPage";
@@ -25,6 +26,15 @@ export default function AppRouter() {
           path="/"
           element={
             <ProtectedRoute>
+              <HomeRedirect />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute requiredAny={["dashboard.view", "users.manage"]}>
               <AppShell>
                 <DashboardPage />
               </AppShell>
@@ -78,9 +88,8 @@ export default function AppRouter() {
           path="/cash/session/:id"
           element={
             <ProtectedRoute requiredAny={["cash.open"]}>
-              <AppShell>
-                <CashSessionPage />
-              </AppShell>
+              {/* sin AppShell: pantalla “modo caja” */}
+              <CashSessionPage />
             </ProtectedRoute>
           }
         />
@@ -89,9 +98,8 @@ export default function AppRouter() {
           path="/cash/session/:id/closed"
           element={
             <ProtectedRoute requiredAny={["cash.open"]}>
-              <AppShell>
-                <CashSessionClosedPage />
-              </AppShell>
+              {/* sin AppShell: pantalla “modo caja” */}
+              <CashSessionClosedPage />
             </ProtectedRoute>
           }
         />

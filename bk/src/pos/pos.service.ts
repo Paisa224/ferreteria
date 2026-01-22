@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  CashMovementType,
   PaymentMethod,
   Prisma,
   SaleStatus,
@@ -96,17 +97,6 @@ export class PosService {
       );
     }
 
-    for (const p of dto.payments) {
-      if (
-        p.method !== 'CASH' &&
-        (!p.reference || p.reference.trim().length === 0)
-      ) {
-        throw new BadRequestException(
-          `El pago ${p.method} requiere reference (ticket/id)`,
-        );
-      }
-    }
-
     const discount = new Prisma.Decimal(dto.discount ?? 0);
 
     let subtotal = new Prisma.Decimal(0);
@@ -129,18 +119,23 @@ export class PosService {
     let paySum = new Prisma.Decimal(0);
     let nonCashSum = new Prisma.Decimal(0);
     let hasCash = false;
+    let cashTotal = new Prisma.Decimal(0);
 
     const payments = dto.payments.map((p) => {
       const amt = new Prisma.Decimal(p.amount);
       paySum = paySum.plus(amt);
 
-      if (p.method === 'CASH') hasCash = true;
-      else nonCashSum = nonCashSum.plus(amt);
+      if (p.method === 'CASH') {
+        hasCash = true;
+        cashTotal = cashTotal.plus(amt);
+      } else {
+        nonCashSum = nonCashSum.plus(amt);
+      }
 
       return {
         method: p.method as PaymentMethod,
         amount: amt,
-        reference: p.method === 'CASH' ? null : p.reference!.trim(),
+        reference: p.method === 'CASH' ? null : p.reference?.trim() || null,
       };
     });
 
@@ -235,7 +230,12 @@ export class PosService {
           items: { create: items },
           payments: { create: payments },
         },
-        include: { items: true, payments: true },
+        include: {
+          items: { include: { product: true } },
+          payments: true,
+          cashSession: { include: { cashRegister: true } },
+          createdByUser: { select: { id: true, username: true, name: true } },
+        },
       });
 
       for (const it of items) {
@@ -246,6 +246,19 @@ export class PosService {
             qty: it.qty,
             note: `Sale #${sale.id}`,
             sale_id: sale.id,
+            created_by: userId,
+          },
+        });
+      }
+
+      if (cashTotal.gt(0)) {
+        await tx.cashMovement.create({
+          data: {
+            cash_session_id: cashSession.id,
+            type: CashMovementType.IN,
+            concept: `Venta #${sale.id}`,
+            amount: cashTotal,
+            reference: String(sale.id),
             created_by: userId,
           },
         });

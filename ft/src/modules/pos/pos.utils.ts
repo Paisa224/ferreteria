@@ -19,3 +19,22 @@ export function parseError(err: any) {
 export function roundQty(value: number) {
   return Math.round(value * 1000) / 1000;
 }
+
+export function paymentMethodLabel(
+  method: "CASH" | "QR" | "TRANSFER" | "TC" | "TD" | string,
+) {
+  switch (method) {
+    case "CASH":
+      return "Efectivo";
+    case "QR":
+      return "QR";
+    case "TRANSFER":
+      return "Transferencia bancaria";
+    case "TC":
+      return "Tarjeta de crédito";
+    case "TD":
+      return "Tarjeta de débito";
+    default:
+      return method;
+  }
+}

@@ -1,8 +1,9 @@
-.wrap {
+.page {
   display: flex;
   flex-direction: column;
   gap: 14px;
   padding: 18px;
+  min-height: 100vh;
 }
 
 .meta {

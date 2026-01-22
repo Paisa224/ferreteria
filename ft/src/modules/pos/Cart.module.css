@@ -17,6 +17,10 @@
   width: 90px;
 }
 
+.table input {
+  width: 90px;
+}
+
 .empty {
   padding: 14px;
   border-radius: 12px;

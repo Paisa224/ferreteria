@@ -47,6 +47,7 @@ export default function CashSessionClosedPage() {
         setSession(sess);
         setSummary(sum);
         setLastCount(counts[0] ?? null);
+
         if (sess.status === "OPEN") {
           navigate(`/cash/session/${sessionId}`, { replace: true });
         }
@@ -54,19 +55,20 @@ export default function CashSessionClosedPage() {
         setErr(parseError(e));
       }
     }
+
     load();
   }, [sessionId, navigate]);
 
   if (err) {
-    return <div className={s.wrap}>{err}</div>;
+    return <div className={s.page}>{err}</div>;
   }
 
   if (!session) {
-    return <div className={s.wrap}>Cargando cierre…</div>;
+    return <div className={s.page}>Cargando cierre…</div>;
   }
 
   return (
-    <div className={s.wrap}>
+    <div className={s.page}>
       <div className="card">
         <h1 className="h1">Caja cerrada</h1>
         <div className="muted">Sesión #{session.id}</div>
@@ -81,6 +83,7 @@ export default function CashSessionClosedPage() {
                 `Caja #${session.cash_register_id}`}
             </div>
           </div>
+
           <div className={s.metaItem}>
             <div className={s.metaLabel}>Apertura</div>
             <div className={s.metaValue}>
@@ -88,6 +91,7 @@ export default function CashSessionClosedPage() {
             </div>
             <div className="muted">{formatDateTime(session.opened_at)}</div>
           </div>
+
           <div className={s.metaItem}>
             <div className={s.metaLabel}>Cierre</div>
             <div className={s.metaValue}>
@@ -108,12 +112,14 @@ export default function CashSessionClosedPage() {
               ₲ {formatMoney(summary?.expected_cash)}
             </div>
           </div>
+
           <div className={s.metaItem}>
             <div className={s.metaLabel}>Contado</div>
             <div className={s.metaValue}>
               ₲ {formatMoney(lastCount?.total_counted)}
             </div>
           </div>
+
           <div className={s.metaItem}>
             <div className={s.metaLabel}>Diferencia</div>
             <div className={s.metaValue}>
@@ -121,10 +127,18 @@ export default function CashSessionClosedPage() {
             </div>
           </div>
         </div>
+
         <div style={{ marginTop: 12 }}>
-          <a className="btn primary" href="/cash/open">
-            Salir
-          </a>
+          <button
+            className="btn primary"
+            type="button"
+            onClick={() => {
+              window.close();
+              window.location.href = "/cash/open";
+            }}
+          >
+            Volver al sistema
+          </button>
         </div>
       </div>
     </div>

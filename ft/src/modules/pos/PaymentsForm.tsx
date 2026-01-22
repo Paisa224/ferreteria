@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { PaymentLine } from "./pos.types";
-import { formatMoney } from "./pos.utils";
+import { formatMoney, paymentMethodLabel } from "./pos.utils";
 import s from "./PaymentsForm.module.css";
 
 type Props = {
@@ -9,7 +9,7 @@ type Props = {
   onChange: (payments: PaymentLine[]) => void;
 };
 
-const methods: PaymentLine["method"][] = ["CASH", "QR", "TC", "TD", "TRANSFER"];
+const methods: PaymentLine["method"][] = ["CASH", "QR", "TRANSFER"];
 
 export function PaymentsForm({ payments, total, onChange }: Props) {
   const [localError, setLocalError] = useState<string | null>(null);
@@ -60,7 +60,7 @@ export function PaymentsForm({ payments, total, onChange }: Props) {
             >
               {methods.map((m) => (
                 <option key={m} value={m}>
-                  {m}
+                  {paymentMethodLabel(m)}
                 </option>
               ))}
             </select>

@@ -5,7 +5,7 @@ import s from "./ProductSearch.module.css";
 
 type Props = {
   products: PosProduct[];
-  onSearch: (q: string) => void;
+  onSearch: (q: string, opts?: { autoAdd?: boolean }) => void;
   onAdd: (product: PosProduct) => void;
   loading?: boolean;
   cartItems: CartItem[];
@@ -37,6 +37,12 @@ export function ProductSearch({
           className={s.searchInput}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              onSearch(query, { autoAdd: true });
+            }
+          }}
           placeholder="Buscar productos"
         />
         <button

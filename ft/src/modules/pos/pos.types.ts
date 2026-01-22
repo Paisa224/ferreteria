@@ -17,7 +17,7 @@ export type CartItem = {
 };
 
 export type PaymentLine = {
-  method: "CASH" | "QR" | "TC" | "TD" | "TRANSFER";
+  method: "CASH" | "QR" | "TRANSFER";
   amount: number;
   reference?: string | null;
 };
@@ -36,4 +36,28 @@ export type SaleResponse = {
   total: string | number;
   created_at: string;
   cash_session_id?: number;
+
+  cashSession?: {
+    id: number;
+    cash_register_id: number;
+    cashRegister?: { id: number; name: string };
+  };
+
+  createdByUser?: { id: number; username: string; name: string };
+
+  items?: Array<{
+    id: number;
+    product_id: number;
+    qty: string | number;
+    price: string | number;
+    subtotal: string | number;
+    product?: { id: number; name: string };
+  }>;
+
+  payments?: Array<{
+    id: number;
+    method: PaymentLine["method"];
+    amount: string | number;
+    reference?: string | null;
+  }>;
 };

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getDashboardSummary } from "../modules/dashboard/dashboard.api";
 import { DashboardCharts } from "../modules/dashboard/DashboardCharts";
+import { paymentMethodLabel } from "../modules/pos/pos.utils";
 import s from "./DashboardPage.module.css";
 
 function toISODate(d: Date) {
@@ -56,6 +57,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [from, to]);
 
   const salesByDay = useMemo(() => {
@@ -114,6 +116,15 @@ export default function DashboardPage() {
 
   const k = data?.kpis;
 
+  const paymentsByMethod = (k?.payments_by_method ?? []) as Array<{
+    method: string;
+    total: string;
+  }>;
+  const paymentsTotal = paymentsByMethod.reduce(
+    (acc, p) => acc + Number(p.total ?? "0"),
+    0,
+  );
+
   return (
     <div className={s.wrap}>
       <div className="card">
@@ -157,6 +168,7 @@ export default function DashboardPage() {
             <button className="btn" onClick={load} disabled={loading}>
               Actualizar
             </button>
+
             <button
               className="btn primary"
               onClick={downloadCSV}
@@ -180,6 +192,7 @@ export default function DashboardPage() {
             Rango: {from} → {to}
           </div>
         </div>
+
         <div className={s.kpi}>
           <div className={s.kpiTitle}>Ingresos por ventas</div>
           <div className={s.kpiValue}>₲ {k ? moneyPY(k.sales_total) : "-"}</div>
@@ -187,6 +200,7 @@ export default function DashboardPage() {
             Ticket promedio: ₲ {k ? moneyPY(k.avg_ticket) : "-"}
           </div>
         </div>
+
         <div className={s.kpi}>
           <div className={s.kpiTitle}>Ingresos de cajas</div>
           <div className={s.kpiValue}>
@@ -194,6 +208,7 @@ export default function DashboardPage() {
           </div>
           <div className={s.kpiSub}>Movimientos tipo de Ingresos</div>
         </div>
+
         <div className={s.kpi}>
           <div className={s.kpiTitle}>Egresos de cajas</div>
           <div className={s.kpiValue}>
@@ -201,16 +216,35 @@ export default function DashboardPage() {
           </div>
           <div className={s.kpiSub}>Movimientos tipo de Egresos</div>
         </div>
+
         <div className={s.kpi}>
           <div className={s.kpiTitle}>Neto (Ingresos - Egresos)</div>
           <div className={s.kpiValue}>₲ {k ? moneyPY(k.net_total) : "-"}</div>
           <div className={s.kpiSub}>Balance de caja</div>
         </div>
+
         <div className={s.kpi}>
           <div className={s.kpiTitle}>Cajas abiertas</div>
           <div className={s.kpiValue}>{k ? k.open_cash_sessions : "-"}</div>
           <div className={s.kpiSub}>
             Stock bajo (≤ 5): {k ? k.low_stock_count : "-"}
+          </div>
+        </div>
+
+        <div className={s.kpi}>
+          <div className={s.kpiTitle}>Pagos por método</div>
+          <div className={s.kpiValue}>
+            {paymentsByMethod.length > 0 ? `₲ ${moneyPY(paymentsTotal)}` : "-"}
+          </div>
+          <div className={s.kpiSub}>
+            {paymentsByMethod.length === 0
+              ? "Sin pagos"
+              : paymentsByMethod
+                  .map(
+                    (p) =>
+                      `${paymentMethodLabel(p.method)}: ₲ ${moneyPY(p.total)}`,
+                  )
+                  .join(" · ")}
           </div>
         </div>
       </div>
@@ -229,6 +263,8 @@ export default function DashboardPage() {
                 <th>Usuario</th>
                 <th>Apertura</th>
                 <th>Monto apertura</th>
+                <th>Esperado</th>
+                <th>Diferencia</th>
               </tr>
             </thead>
             <tbody>
@@ -238,6 +274,10 @@ export default function DashboardPage() {
                   <td>{x.opened_by?.username}</td>
                   <td>{new Date(x.opened_at).toLocaleString()}</td>
                   <td>₲ {moneyPY(x.opening_amount)}</td>
+                  <td>₲ {moneyPY(x.expected_cash)}</td>
+                  <td>
+                    {x.difference !== null ? `₲ ${moneyPY(x.difference)}` : "-"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -286,7 +326,10 @@ export default function DashboardPage() {
                 <td>₲ {moneyPY(x.total)}</td>
                 <td>
                   {(x.payments ?? [])
-                    .map((p: any) => `${p.method}:${moneyPY(p.amount)}`)
+                    .map(
+                      (p: any) =>
+                        `${paymentMethodLabel(p.method)}:${moneyPY(p.amount)}`,
+                    )
                     .join(" | ")}
                 </td>
               </tr>

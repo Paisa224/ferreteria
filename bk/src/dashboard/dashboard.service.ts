@@ -71,6 +71,53 @@ export class DashboardService {
       },
     });
 
+    const openSessionIds = openSessions.map((s) => s.id);
+    const openMovements =
+      openSessionIds.length > 0
+        ? await this.prisma.cashMovement.groupBy({
+            by: ['cash_session_id', 'type'],
+            where: { cash_session_id: { in: openSessionIds } },
+            _sum: { amount: true },
+          })
+        : [];
+
+    const lastCounts = await Promise.all(
+      openSessions.map((s) =>
+        this.prisma.cashCount.findFirst({
+          where: { cash_session_id: s.id },
+          orderBy: { counted_at: 'desc' },
+        }),
+      ),
+    );
+
+    const countsBySession = new Map(
+      lastCounts.map((count, idx) => [openSessions[idx]?.id, count ?? null]),
+    );
+
+    const expectedBySession = new Map<number, Prisma.Decimal>();
+    for (const session of openSessions) {
+      const sumIn =
+        openMovements.find(
+          (m) =>
+            m.cash_session_id === session.id && m.type === CashMovementType.IN,
+        )?._sum.amount ?? new Prisma.Decimal(0);
+      const sumOut =
+        openMovements.find(
+          (m) =>
+            m.cash_session_id === session.id && m.type === CashMovementType.OUT,
+        )?._sum.amount ?? new Prisma.Decimal(0);
+      expectedBySession.set(
+        session.id,
+        session.opening_amount.plus(sumIn).minus(sumOut),
+      );
+    }
+
+    const paymentsByMethod = await this.prisma.payment.groupBy({
+      by: ['method'],
+      where: { created_at: { gte: from, lte: to } },
+      _sum: { amount: true },
+    });
+
     const LOW_STOCK_THRESHOLD = new Prisma.Decimal(5);
 
     const products = await this.prisma.product.findMany({
@@ -171,6 +218,10 @@ export class DashboardService {
         net_total: net_total.toString(),
         open_cash_sessions: openSessions.length,
         low_stock_count,
+        payments_by_method: paymentsByMethod.map((p) => ({
+          method: p.method,
+          total: (p._sum.amount ?? new Prisma.Decimal(0)).toString(),
+        })),
       },
       charts: {
         sales_by_day: sales_by_day.map((r) => ({
@@ -191,6 +242,10 @@ export class DashboardService {
           opened_at: s.opened_at,
           opening_amount: s.opening_amount.toString(),
           opened_by: s.openedByUser,
+          expected_cash: expectedBySession.get(s.id)?.toString() ?? '0',
+          last_counted:
+            countsBySession.get(s.id)?.total_counted?.toString() ?? null,
+          difference: countsBySession.get(s.id)?.difference?.toString() ?? null,
         })),
         low_stock: lowStock.map((p) => ({
           id: p.id,

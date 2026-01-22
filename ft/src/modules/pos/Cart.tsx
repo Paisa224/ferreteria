@@ -5,10 +5,18 @@ import s from "./Cart.module.css";
 type Props = {
   items: CartItem[];
   onChangeQty: (id: number, qty: number) => void;
+  onChangePrice?: (id: number, price: number) => void;
+  canOverridePrice?: boolean;
   onRemove: (id: number) => void;
 };
 
-export function Cart({ items, onChangeQty, onRemove }: Props) {
+export function Cart({
+  items,
+  onChangeQty,
+  onChangePrice,
+  canOverridePrice,
+  onRemove,
+}: Props) {
   if (items.length === 0) {
     return <div className={s.empty}>No hay productos en el carrito.</div>;
   }
@@ -27,18 +35,37 @@ export function Cart({ items, onChangeQty, onRemove }: Props) {
       <tbody>
         {items.map((item) => {
           const subtotal = item.qty * item.price;
+
           return (
             <tr key={item.product.id}>
               <td>
                 <div className={s.name}>{item.product.name}</div>
+
                 {item.product.unit && (
                   <div className="muted">Unidad: {item.product.unit}</div>
                 )}
+
                 {item.product.track_stock && item.stock !== undefined && (
                   <div className="muted">Stock: {item.stock ?? "N/A"}</div>
                 )}
               </td>
-              <td>₲ {formatMoney(item.price)}</td>
+
+              <td>
+                {canOverridePrice ? (
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={item.price}
+                    onChange={(e) =>
+                      onChangePrice?.(item.product.id, Number(e.target.value))
+                    }
+                  />
+                ) : (
+                  <>₲ {formatMoney(item.price)}</>
+                )}
+              </td>
+
               <td className={s.qtyCell}>
                 <button
                   className="btn"
@@ -49,6 +76,7 @@ export function Cart({ items, onChangeQty, onRemove }: Props) {
                 >
                   -
                 </button>
+
                 <input
                   type="number"
                   min={0.001}
@@ -58,6 +86,7 @@ export function Cart({ items, onChangeQty, onRemove }: Props) {
                     onChangeQty(item.product.id, Number(e.target.value))
                   }
                 />
+
                 <button
                   className="btn"
                   type="button"
@@ -68,7 +97,9 @@ export function Cart({ items, onChangeQty, onRemove }: Props) {
                   +
                 </button>
               </td>
+
               <td>₲ {formatMoney(subtotal)}</td>
+
               <td>
                 <button
                   className="btn danger"

@@ -20,6 +20,7 @@ import { CashMovements } from "../modules/cash/CashMovements";
 import { CashCountForm } from "../modules/cash/CashCountForm";
 import { CashSummaryCard } from "../modules/cash/CashSummaryCard";
 import { formatDateTime, formatMoney } from "../modules/cash/cash.utils";
+import { PosWorkspace } from "../modules/pos/PosWorkspace";
 import s from "./CashSessionPage.module.css";
 
 function parseError(err: any) {
@@ -48,6 +49,9 @@ export default function CashSessionPage() {
   const [busyMove, setBusyMove] = useState(false);
   const [busyCount, setBusyCount] = useState(false);
   const [busyClose, setBusyClose] = useState(false);
+  const [tab, setTab] = useState<
+    "ventas" | "movimientos" | "arqueo" | "cierre"
+  >("ventas");
 
   const lastCount = useMemo(() => counts[0] ?? null, [counts]);
 
@@ -81,6 +85,7 @@ export default function CashSessionPage() {
       setMovements(movs);
       setCounts(countsData);
       setDenoms(denomsData);
+
       if (sess.status === "CLOSED") {
         navigate(`/cash/session/${sessionId}/closed`, { replace: true });
       }
@@ -93,6 +98,7 @@ export default function CashSessionPage() {
 
   useEffect(() => {
     loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
   async function handleMovement(dto: {
@@ -140,10 +146,12 @@ export default function CashSessionPage() {
   async function handleClose() {
     if (!session) return;
     setCloseErr(null);
+
     if (!lastCount) {
       setCloseErr("Primero hacé un arqueo final para cerrar la sesión.");
       return;
     }
+
     const ok = window.confirm("¿Cerrar la sesión de caja?");
     if (!ok) return;
 
@@ -159,19 +167,19 @@ export default function CashSessionPage() {
   }
 
   if (loading) {
-    return <div className={s.wrap}>Cargando sesión…</div>;
+    return <div className={s.page}>Cargando sesión…</div>;
   }
 
   if (!session) {
     return (
-      <div className={s.wrap}>
+      <div className={s.page}>
         <div className="card">{err ?? "Sesión no encontrada."}</div>
       </div>
     );
   }
 
   return (
-    <div className={s.wrap}>
+    <div className={s.page}>
       <div className="card">
         <div className={s.header}>
           <div>
@@ -180,6 +188,7 @@ export default function CashSessionPage() {
           </div>
           <span className={s.badge}>OPEN</span>
         </div>
+
         <div className={s.meta}>
           <div className={s.metaItem}>
             <div className={s.metaLabel}>Caja</div>
@@ -188,6 +197,7 @@ export default function CashSessionPage() {
                 `Caja #${session.cash_register_id}`}
             </div>
           </div>
+
           <div className={s.metaItem}>
             <div className={s.metaLabel}>Usuario</div>
             <div className={s.metaValue}>
@@ -196,6 +206,7 @@ export default function CashSessionPage() {
                 : session.opened_by}
             </div>
           </div>
+
           <div className={s.metaItem}>
             <div className={s.metaLabel}>Apertura</div>
             <div className={s.metaValue}>
@@ -208,60 +219,95 @@ export default function CashSessionPage() {
 
       {err && <div className={`card ${s.error}`}>{err}</div>}
 
-      <div className={s.grid}>
-        <div className={s.stack}>
-          <div className="card">
-            <CashSummaryCard summary={summary} />
+      <div className={s.tabs}>
+        {[
+          { key: "ventas", label: "Ventas" },
+          { key: "movimientos", label: "Movimientos" },
+          { key: "arqueo", label: "Arqueo" },
+          { key: "cierre", label: "Cierre" },
+        ].map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            className={`${s.tabButton} ${tab === t.key ? s.tabActive : ""}`}
+            onClick={() =>
+              setTab(t.key as "ventas" | "movimientos" | "arqueo" | "cierre")
+            }
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className={s.content}>
+        {tab === "ventas" && (
+          <div className={s.panel}>
+            <PosWorkspace showHeader={false} />
           </div>
-          <div className="card">
-            <CashMovements
-              movements={movements}
-              onAdd={handleMovement}
-              loading={busyMove}
-              error={moveErr}
-            />
-          </div>
-          <div className={`card ${s.notice}`}>
-            ¿Necesitás vender? Abrí el POS en una pestaña dedicada.
-            <div style={{ marginTop: 8 }}>
-              <a
-                className="btn primary"
-                href="/pos"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Abrir POS
-              </a>
+        )}
+
+        {tab === "movimientos" && (
+          <div className={`${s.panel} ${s.split}`}>
+            <div className="card">
+              <CashSummaryCard summary={summary} />
+            </div>
+            <div className="card">
+              <CashMovements
+                movements={movements}
+                onAdd={handleMovement}
+                loading={busyMove}
+                error={moveErr}
+              />
             </div>
           </div>
-        </div>
-        <div className={s.stack}>
-          <div className="card">
-            <CashCountForm
-              denominations={denoms}
-              onCount={handleCount}
-              loading={busyCount}
-              error={countErr}
-              lastCount={lastCount}
-            />
+        )}
+
+        {tab === "arqueo" && (
+          <div className={s.panel}>
+            <div className="card">
+              <CashCountForm
+                denominations={denoms}
+                onCount={handleCount}
+                loading={busyCount}
+                error={countErr}
+                lastCount={lastCount}
+              />
+            </div>
           </div>
-          <div className="card">
-            <div>
-              <h2 className="h1">Cierre</h2>
-              <div className="muted">
-                El cierre requiere un arqueo final. Se usa el último arqueo.
+        )}
+
+        {tab === "cierre" && (
+          <div className={s.panel}>
+            <div className="card">
+              <CashSummaryCard summary={summary} />
+            </div>
+
+            <div className="card" style={{ marginTop: 12 }}>
+              <div>
+                <h2 className="h1">Cierre</h2>
+                <div className="muted">
+                  El cierre requiere un arqueo final. Se usa el último arqueo.
+                </div>
               </div>
+
+              {closeErr && <div className={s.error}>{closeErr}</div>}
+
+              <button
+                className="btn danger"
+                type="button"
+                onClick={handleClose}
+                disabled={busyClose}
+              >
+                {busyClose ? "Cerrando…" : "Cerrar sesión"}
+              </button>
             </div>
-            {closeErr && <div className={s.error}>{closeErr}</div>}
-            <button
-              className="btn danger"
-              onClick={handleClose}
-              disabled={busyClose}
-            >
-              {busyClose ? "Cerrando…" : "Cerrar sesión"}
-            </button>
+
+            <div className={`card ${s.notice}`} style={{ marginTop: 12 }}>
+              Antes de cerrar, verificá el arqueo. Si está correcto, cerrá la
+              sesión desde este panel.
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

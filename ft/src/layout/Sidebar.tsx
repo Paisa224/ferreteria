@@ -19,6 +19,7 @@ export function Sidebar() {
 
   const perms = me?.permissions ?? [];
   const can = (perm: string) => perms.includes(perm);
+  const canDashboard = can("dashboard.view") || can("users.manage");
 
   return (
     <aside className="sidebar">
@@ -31,7 +32,7 @@ export function Sidebar() {
       </div>
 
       <nav className="nav">
-        <LinkItem to="/" label="Dashboard" />
+        {canDashboard && <LinkItem to="/dashboard" label="Dashboard" />}
 
         {can("pos.sell") && <LinkItem to="/pos" label="POS Ventas" />}
 
