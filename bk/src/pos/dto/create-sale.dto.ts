@@ -12,16 +12,16 @@ import { Type } from 'class-transformer';
 
 class SaleItemDto {
   @IsInt() product_id: number;
-  @IsNumber() @Min(0.001) qty: number;
-  @IsNumber() @Min(0) price: number;
+  @IsNumber() @Min(0.01) qty: number;
+  @IsInt() @Min(0) price: number;
 }
 
 class PaymentDto {
   @IsIn(['CASH', 'QR', 'TC', 'TD', 'TRANSFER'])
   method: 'CASH' | 'QR' | 'TC' | 'TD' | 'TRANSFER';
 
-  @IsNumber()
-  @Min(0.01)
+  @IsInt()
+  @Min(1)
   amount: number;
 
   @IsOptional()
@@ -44,7 +44,7 @@ export class CreateSaleDto {
   @IsOptional() @IsString() note?: string;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(0)
   discount?: number;
 }

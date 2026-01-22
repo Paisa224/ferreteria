@@ -51,7 +51,7 @@ export type SaleResponse = {
     qty: string | number;
     price: string | number;
     subtotal: string | number;
-    product?: { id: number; name: string };
+    product?: { id: number; name: string; unit?: string | null };
   }>;
 
   payments?: Array<{

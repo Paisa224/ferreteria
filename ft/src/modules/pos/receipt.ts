@@ -1,5 +1,5 @@
 import type { SaleResponse } from "./pos.types";
-import { formatMoney, paymentMethodLabel } from "./pos.utils";
+import { formatMoney, formatQty, paymentMethodLabel } from "./pos.utils";
 
 export type ReceiptSettings = {
   businessName: string;
@@ -49,14 +49,24 @@ export function buildReceiptHtml(
     sale.items
       ?.map((item) => {
         const name = item.product?.name ?? `Producto #${item.product_id}`;
+        const unit = item.product?.unit ?? null;
         return `
           <tr>
             <td class="name">${name}</td>
-            <td class="qty">${formatMoney(item.qty)}</td>
+            <td class="qty">${formatQty(Number(item.qty), unit)}</td>
             <td class="price">${formatMoney(item.price)}</td>
             <td class="subtotal">${formatMoney(item.subtotal)}</td>
           </tr>
         `;
+      })
+      .join("") ?? "";
+
+  const paymentsHtml =
+    sale.payments
+      ?.map((p) => {
+        const label = paymentMethodLabel(p.method);
+        const ref = p.reference ? ` (${p.reference})` : "";
+        return `<div>Pago: ${label} · ₲ ${formatMoney(p.amount)}${ref}</div>`;
       })
       .join("") ?? "";
 
@@ -114,7 +124,7 @@ export function buildReceiptHtml(
         </table>
         <hr />
         <div class="block totals">TOTAL: ₲ ${total}</div>
-        <div class="block">Pago: ${paymentLabel}</div>
+        <div class="block">${paymentsHtml || `Pago: ${paymentLabel}`}</div>
         ${
           showCash
             ? `<div class="block">Recibido: ₲ ${formatMoney(

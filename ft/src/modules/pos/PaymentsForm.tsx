@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { PaymentLine } from "./pos.types";
-import { formatMoney, paymentMethodLabel } from "./pos.utils";
+import { formatMoney, parseMoney, paymentMethodLabel } from "./pos.utils";
 import s from "./PaymentsForm.module.css";
 
 type Props = {
@@ -66,12 +66,14 @@ export function PaymentsForm({ payments, total, onChange }: Props) {
             </select>
 
             <input
-              type="number"
-              min={0}
-              step={0.01}
-              value={p.amount}
+              type="text"
+              inputMode="numeric"
+              value={formatMoney(p.amount)}
               onChange={(e) =>
-                updateLine(idx, { amount: Number(e.target.value) })
+                updateLine(idx, { amount: parseMoney(e.target.value) })
+              }
+              onBlur={(e) =>
+                updateLine(idx, { amount: parseMoney(e.currentTarget.value) })
               }
             />
 

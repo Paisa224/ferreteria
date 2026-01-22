@@ -2,15 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { getDashboardSummary } from "../modules/dashboard/dashboard.api";
 import { DashboardCharts } from "../modules/dashboard/DashboardCharts";
 import { paymentMethodLabel } from "../modules/pos/pos.utils";
+import { formatMoneyGs } from "../utils/money";
 import s from "./DashboardPage.module.css";
 
 function toISODate(d: Date) {
   return d.toISOString().slice(0, 10);
-}
-
-function moneyPY(v: any) {
-  const n = Number(String(v ?? "0"));
-  return new Intl.NumberFormat("es-PY").format(n);
 }
 
 export default function DashboardPage() {
@@ -195,16 +191,18 @@ export default function DashboardPage() {
 
         <div className={s.kpi}>
           <div className={s.kpiTitle}>Ingresos por ventas</div>
-          <div className={s.kpiValue}>₲ {k ? moneyPY(k.sales_total) : "-"}</div>
+          <div className={s.kpiValue}>
+            ₲ {k ? formatMoneyGs(k.sales_total) : "-"}
+          </div>
           <div className={s.kpiSub}>
-            Ticket promedio: ₲ {k ? moneyPY(k.avg_ticket) : "-"}
+            Ticket promedio: ₲ {k ? formatMoneyGs(k.avg_ticket) : "-"}
           </div>
         </div>
 
         <div className={s.kpi}>
           <div className={s.kpiTitle}>Ingresos de cajas</div>
           <div className={s.kpiValue}>
-            ₲ {k ? moneyPY(k.cash_in_total) : "-"}
+            ₲ {k ? formatMoneyGs(k.cash_in_total) : "-"}
           </div>
           <div className={s.kpiSub}>Movimientos tipo de Ingresos</div>
         </div>
@@ -212,14 +210,16 @@ export default function DashboardPage() {
         <div className={s.kpi}>
           <div className={s.kpiTitle}>Egresos de cajas</div>
           <div className={s.kpiValue}>
-            ₲ {k ? moneyPY(k.cash_out_total) : "-"}
+            ₲ {k ? formatMoneyGs(k.cash_out_total) : "-"}
           </div>
           <div className={s.kpiSub}>Movimientos tipo de Egresos</div>
         </div>
 
         <div className={s.kpi}>
           <div className={s.kpiTitle}>Neto (Ingresos - Egresos)</div>
-          <div className={s.kpiValue}>₲ {k ? moneyPY(k.net_total) : "-"}</div>
+          <div className={s.kpiValue}>
+            ₲ {k ? formatMoneyGs(k.net_total) : "-"}
+          </div>
           <div className={s.kpiSub}>Balance de caja</div>
         </div>
 
@@ -234,7 +234,9 @@ export default function DashboardPage() {
         <div className={s.kpi}>
           <div className={s.kpiTitle}>Pagos por método</div>
           <div className={s.kpiValue}>
-            {paymentsByMethod.length > 0 ? `₲ ${moneyPY(paymentsTotal)}` : "-"}
+            {paymentsByMethod.length > 0
+              ? `₲ ${formatMoneyGs(paymentsTotal)}`
+              : "-"}
           </div>
           <div className={s.kpiSub}>
             {paymentsByMethod.length === 0
@@ -242,12 +244,23 @@ export default function DashboardPage() {
               : paymentsByMethod
                   .map(
                     (p) =>
-                      `${paymentMethodLabel(p.method)}: ₲ ${moneyPY(p.total)}`,
+                      `${paymentMethodLabel(p.method)}: ₲ ${formatMoneyGs(
+                        p.total,
+                      )}`,
                   )
                   .join(" · ")}
           </div>
         </div>
       </div>
+
+      {k && k.sales_count === 0 && (
+        <div className="card">
+          <div className="muted">
+            No hay ventas en el rango seleccionado. Revisá el filtro de fechas
+            o confirmá que existan ventas registradas.
+          </div>
+        </div>
+      )}
 
       {data && (
         <DashboardCharts salesByDay={salesByDay} cashByDay={cashByDay} />
@@ -273,10 +286,12 @@ export default function DashboardPage() {
                   <td>{x.cash_register}</td>
                   <td>{x.opened_by?.username}</td>
                   <td>{new Date(x.opened_at).toLocaleString()}</td>
-                  <td>₲ {moneyPY(x.opening_amount)}</td>
-                  <td>₲ {moneyPY(x.expected_cash)}</td>
+                  <td>₲ {formatMoneyGs(x.opening_amount)}</td>
+                  <td>₲ {formatMoneyGs(x.expected_cash)}</td>
                   <td>
-                    {x.difference !== null ? `₲ ${moneyPY(x.difference)}` : "-"}
+                    {x.difference !== null
+                      ? `₲ ${formatMoneyGs(x.difference)}`
+                      : "-"}
                   </td>
                 </tr>
               ))}
@@ -297,9 +312,9 @@ export default function DashboardPage() {
             <tbody>
               {(data?.tables?.low_stock ?? []).map((x: any) => (
                 <tr key={x.id}>
-                  <td>{x.name}</td>
-                  <td>{x.sku ?? "-"}</td>
-                  <td>{x.stock}</td>
+                <td>{x.name}</td>
+                <td>{x.sku ?? "-"}</td>
+                <td>{x.stock}</td>
                 </tr>
               ))}
             </tbody>
@@ -323,12 +338,14 @@ export default function DashboardPage() {
               <tr key={x.id}>
                 <td>{new Date(x.created_at).toLocaleString()}</td>
                 <td>{x.cash_register ?? "-"}</td>
-                <td>₲ {moneyPY(x.total)}</td>
+                <td>₲ {formatMoneyGs(x.total)}</td>
                 <td>
                   {(x.payments ?? [])
                     .map(
                       (p: any) =>
-                        `${paymentMethodLabel(p.method)}:${moneyPY(p.amount)}`,
+                        `${paymentMethodLabel(p.method)}:${formatMoneyGs(
+                          p.amount,
+                        )}`,
                     )
                     .join(" | ")}
                 </td>

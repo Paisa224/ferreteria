@@ -1,12 +1,7 @@
-export function formatMoney(value: string | number | null | undefined) {
-  if (value === null || value === undefined) return "-";
-  const n = Number(value);
-  if (Number.isNaN(n)) return String(value);
-  return new Intl.NumberFormat("es-PY", {
-    minimumFractionDigits: n % 1 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  }).format(n);
-}
+import { formatMoneyGs, parseMoneyGs } from "../../utils/money";
+
+export const formatMoney = formatMoneyGs;
+export const parseMoney = parseMoneyGs;
 
 export function parseError(err: any) {
   const msg = err?.response?.data?.message;
@@ -16,8 +11,36 @@ export function parseError(err: any) {
   return "Ocurrió un error. Intentá nuevamente.";
 }
 
-export function roundQty(value: number) {
-  return Math.round(value * 1000) / 1000;
+const DECIMAL_UNITS = new Set(["KG", "KGS", "L", "LT", "M", "MT"]);
+
+export function normalizeUnit(unit?: string | null) {
+  return (unit ?? "").trim().toUpperCase();
+}
+
+export function isDecimalUnit(unit?: string | null) {
+  return DECIMAL_UNITS.has(normalizeUnit(unit));
+}
+
+export function qtyStep(unit?: string | null) {
+  return isDecimalUnit(unit) ? 0.01 : 1;
+}
+
+export function qtyDecimals(unit?: string | null) {
+  return isDecimalUnit(unit) ? 2 : 0;
+}
+
+export function roundQty(value: number, unit?: string | null) {
+  const decimals = qtyDecimals(unit);
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+}
+
+export function formatQty(value: number, unit?: string | null) {
+  const decimals = qtyDecimals(unit);
+  return new Intl.NumberFormat("es-PY", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value);
 }
 
 export function paymentMethodLabel(
