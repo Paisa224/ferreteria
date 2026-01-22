@@ -1,4 +1,3 @@
-// ft/src/modules/users/users.api.ts
 import type {
   CreateUserDto,
   Permission,

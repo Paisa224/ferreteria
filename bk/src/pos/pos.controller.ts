@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
+import { RequireAnyPermissions } from '../auth/require-any-permissions.decorator';
 import { RequirePermissions } from '../auth/require-permissions.decorator';
 import { CreateProductDto } from './dto/create-product.dto';
 import { CreateSaleDto } from './dto/create-sale.dto';
@@ -30,7 +31,7 @@ export class PosController {
   }
 
   @Get('products')
-  @RequirePermissions('inventory.manage')
+  @RequireAnyPermissions('pos.sell', 'inventory.manage')
   listProducts(@Query('q') q?: string) {
     return this.pos.listProducts(q);
   }

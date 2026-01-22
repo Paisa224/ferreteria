@@ -15,10 +15,16 @@ export async function listCashRegisters(): Promise<CashRegister[]> {
   return data;
 }
 
-export async function createCashRegister(dto: {
-  name: string;
-}): Promise<CashRegister> {
-  const { data } = await http.post("/cash/registers", dto);
+export async function createCashRegister(name: string): Promise<CashRegister> {
+  const { data } = await http.post("/cash/registers", { name });
+  return data;
+}
+
+export async function updateCashRegister(
+  id: number,
+  payload: Partial<Pick<CashRegister, "name" | "is_active">>,
+): Promise<CashRegister> {
+  const { data } = await http.patch(`/cash/registers/${id}`, payload);
   return data;
 }
 
@@ -37,11 +43,16 @@ export async function myOpenSession(): Promise<CashSession | null> {
   }
 }
 
+export async function getCashSession(sessionId: number): Promise<CashSession> {
+  const { data } = await http.get(`/cash/sessions/${sessionId}`);
+  return data;
+}
+
 export async function openCashSession(
   dto: OpenSessionDto,
 ): Promise<CashSession> {
   const { data } = await http.post("/cash/sessions/open", dto);
-  return data;
+  return (data?.session ?? data) as CashSession;
 }
 
 export async function getCashSummary(sessionId: number): Promise<CashSummary> {
@@ -72,6 +83,11 @@ export async function countCash(
   dto: CashCountDto,
 ): Promise<CashCount> {
   const { data } = await http.post(`/cash/sessions/${sessionId}/count`, dto);
+  return data;
+}
+
+export async function listCashCounts(sessionId: number): Promise<CashCount[]> {
+  const { data } = await http.get(`/cash/sessions/${sessionId}/counts`);
   return data;
 }
 

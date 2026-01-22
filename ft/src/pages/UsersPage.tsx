@@ -56,14 +56,11 @@ export default function UsersPage() {
     try {
       const d = await getRole(id);
       setRoleDetail(d);
-    } catch {
-      // si falla, se queda null y lo ves en UI
-    }
+    } catch {}
   }
 
   useEffect(() => {
     loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

@@ -45,5 +45,5 @@ export type StockMovementListResponse = {
 
 export type StockMoveResult = {
   movement: StockMovementResponse;
-  stock: string | number | null;
+  stock: string | number;
 };

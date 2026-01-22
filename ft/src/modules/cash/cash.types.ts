@@ -12,11 +12,13 @@ export type OpenSessionDto = {
 export type CashSession = {
   id: number;
   cash_register_id: number;
+  opened_by: number;
   status: "OPEN" | "CLOSED";
   opened_at: string;
   opening_amount: string | number;
   closed_at?: string | null;
   closing_amount?: string | number | null;
+  closed_with_cash_count_id?: number | null;
   cashRegister?: CashRegister;
   openedByUser?: { id: number; username: string; name: string };
 };

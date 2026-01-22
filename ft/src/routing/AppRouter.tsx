@@ -5,8 +5,10 @@ import { AppShell } from "../layout/AppShell";
 import LoginPage from "../pages/LoginPage";
 import DashboardPage from "../pages/DashboardPage";
 import PosPage from "../pages/PosPage";
-import CashPage from "../pages/CashPage";
+import CashOpenPage from "../pages/CashOpenPage";
 import CashRegistersPage from "../pages/CashRegistersPage";
+import CashSessionPage from "../pages/CashSessionPage";
+import CashSessionClosedPage from "../pages/CashSessionClosedPage";
 import ProductsPage from "../pages/ProductsPage";
 import InventoryPage from "../pages/InventoryPage";
 import UsersPage from "../pages/UsersPage";
@@ -44,12 +46,8 @@ export default function AppRouter() {
         <Route
           path="/cash"
           element={
-            <ProtectedRoute
-              requiredAny={["cash.open", "cash.count", "cash.close"]}
-            >
-              <AppShell>
-                <CashPage />
-              </AppShell>
+            <ProtectedRoute requiredAny={["cash.open"]}>
+              <Navigate to="/cash/open" replace />
             </ProtectedRoute>
           }
         />
@@ -60,6 +58,39 @@ export default function AppRouter() {
             <ProtectedRoute requiredAny={["cash.manage"]}>
               <AppShell>
                 <CashRegistersPage />
+              </AppShell>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/cash/open"
+          element={
+            <ProtectedRoute requiredAny={["cash.open"]}>
+              <AppShell>
+                <CashOpenPage />
+              </AppShell>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/cash/session/:id"
+          element={
+            <ProtectedRoute requiredAny={["cash.open"]}>
+              <AppShell>
+                <CashSessionPage />
+              </AppShell>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/cash/session/:id/closed"
+          element={
+            <ProtectedRoute requiredAny={["cash.open"]}>
+              <AppShell>
+                <CashSessionClosedPage />
               </AppShell>
             </ProtectedRoute>
           }

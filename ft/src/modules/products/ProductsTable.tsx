@@ -8,9 +8,9 @@ type Props = {
   onToggleActive: (product: Product) => void;
 };
 
-function formatNumber(value: any) {
-  const n = Number(value ?? 0);
-  if (Number.isNaN(n)) return String(value ?? "");
+function formatNumber(value: string | number) {
+  const n = Number(value);
+  if (Number.isNaN(n)) return String(value);
   return new Intl.NumberFormat("es-PY", {
     minimumFractionDigits: n % 1 === 0 ? 0 : 2,
     maximumFractionDigits: 2,
@@ -43,12 +43,7 @@ export function ProductsTable({
       </thead>
       <tbody>
         {products.map((p) => (
-          <tr
-            key={p.id}
-            className={selectedId === p.id ? s.selectedRow : undefined}
-            onClick={() => onSelect(p)}
-            style={{ cursor: "pointer" }}
-          >
+          <tr key={p.id}>
             <td>
               <div className={s.name}>{p.name}</div>
               {p.unit && <div className="muted">Unidad: {p.unit}</div>}
@@ -67,7 +62,7 @@ export function ProductsTable({
                 {p.is_active ? "Activo" : "Inactivo"}
               </span>
             </td>
-            <td className={s.actions} onClick={(e) => e.stopPropagation()}>
+            <td className={s.actions}>
               <button
                 className={`btn ${selectedId === p.id ? "primary" : ""}`}
                 onClick={() => onSelect(p)}

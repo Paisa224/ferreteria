@@ -1,4 +1,3 @@
-// ft/src/modules/users/types.ts
 export type Role = { id: number; name: string };
 
 export type Permission = { id: number; key: string };

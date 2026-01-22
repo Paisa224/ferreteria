@@ -19,7 +19,6 @@ export default function App() {
   const [password, setPassword] = useState("Admin1234!");
   const [cashSession, setCashSession] = useState<CashSession>(null);
 
-  // POS state
   const [q, setQ] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<

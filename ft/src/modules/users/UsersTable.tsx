@@ -1,6 +1,3 @@
-// ft/src/modules/users/UsersTable.tsx
-// Reemplazá el archivo completo por este (mantiene la UI "Nuevo usuario" igual,
-// pero cambia "Roles" por "Editar" y dentro editás TODO: nombre, username, CI, pass, estado y roles)
 import { useMemo, useState } from "react";
 import type { Role, UpdateUserDto, UserListItem } from "./types";
 import s from "./UsersPage.module.css";

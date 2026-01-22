@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -19,61 +18,42 @@ import { UpdateProductDto } from './dto/update-product.dto';
 export class PosService {
   constructor(private prisma: PrismaService) {}
 
-  private mapUniqueError(e: Prisma.PrismaClientKnownRequestError) {
-    const target = (e.meta as any)?.target;
-    const t = Array.isArray(target) ? target.join(',') : String(target ?? '');
-
-    if (t.includes('Product_sku_key') || t.toLowerCase().includes('sku')) {
-      return new ConflictException('El SKU Ingresado ya existe');
-    }
-    if (
-      t.includes('Product_barcode_key') ||
-      t.toLowerCase().includes('barcode')
-    ) {
-      return new ConflictException('Código de barras ya existe');
-    }
-
-    return new ConflictException('Ya existe un valor único');
-  }
-
   async createProduct(dto: CreateProductDto) {
-    try {
-      return await this.prisma.product.create({
-        data: {
-          sku: dto.sku ?? null,
-          barcode: dto.barcode ?? null,
-          name: dto.name.trim(),
-          unit: dto.unit ?? null,
-          cost: new Prisma.Decimal(dto.cost),
-          price: new Prisma.Decimal(dto.price),
-          track_stock: dto.track_stock ?? true,
-          is_active: dto.is_active ?? true,
-        },
-      });
-    } catch (e: any) {
-      if (
-        e instanceof Prisma.PrismaClientKnownRequestError &&
-        e.code === 'P2002'
-      ) {
-        throw this.mapUniqueError(e);
-      }
-      throw e;
-    }
+    return this.prisma.product.create({
+      data: {
+        sku: dto.sku?.trim() || null,
+        barcode: dto.barcode?.trim() || null,
+        name: dto.name.trim(),
+        unit: dto.unit?.trim() || null,
+        cost: new Prisma.Decimal(dto.cost),
+        price: new Prisma.Decimal(dto.price),
+        track_stock: dto.track_stock ?? true,
+        is_active: dto.is_active ?? true,
+      },
+    });
   }
 
   async listProducts(q?: string) {
-    const where = q
-      ? {
-          OR: [
-            { name: { contains: q, mode: 'insensitive' as const } },
-            { sku: q },
-            { barcode: q },
-          ],
-        }
-      : {};
+    const query = (q ?? '').trim();
+    if (!query) {
+      return this.prisma.product.findMany({
+        orderBy: { id: 'asc' },
+      });
+    }
+
+    const asInt = Number.parseInt(query, 10);
+    const isInt = Number.isFinite(asInt) && String(asInt) === query;
+
+    const or: Prisma.ProductWhereInput[] = [
+      { name: { contains: query } },
+      { sku: query },
+      { barcode: query },
+    ];
+
+    if (isInt) or.push({ id: asInt });
 
     return this.prisma.product.findMany({
-      where,
+      where: { OR: or },
       orderBy: { id: 'asc' },
     });
   }
@@ -87,28 +67,18 @@ export class PosService {
 
     const data: Prisma.ProductUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name.trim();
-    if (dto.sku !== undefined) data.sku = dto.sku ?? null;
-    if (dto.barcode !== undefined) data.barcode = dto.barcode ?? null;
-    if (dto.unit !== undefined) data.unit = dto.unit ?? null;
+    if (dto.sku !== undefined) data.sku = dto.sku?.trim() || null;
+    if (dto.barcode !== undefined) data.barcode = dto.barcode?.trim() || null;
+    if (dto.unit !== undefined) data.unit = dto.unit?.trim() || null;
     if (dto.cost !== undefined) data.cost = new Prisma.Decimal(dto.cost);
     if (dto.price !== undefined) data.price = new Prisma.Decimal(dto.price);
     if (dto.track_stock !== undefined) data.track_stock = dto.track_stock;
     if (dto.is_active !== undefined) data.is_active = dto.is_active;
 
-    try {
-      return await this.prisma.product.update({
-        where: { id },
-        data,
-      });
-    } catch (e: any) {
-      if (
-        e instanceof Prisma.PrismaClientKnownRequestError &&
-        e.code === 'P2002'
-      ) {
-        throw this.mapUniqueError(e);
-      }
-      throw e;
-    }
+    return this.prisma.product.update({
+      where: { id },
+      data,
+    });
   }
 
   private async getMyOpenCashSession(userId: number) {
@@ -157,9 +127,16 @@ export class PosService {
     if (total.lte(0)) throw new BadRequestException('Total inválido');
 
     let paySum = new Prisma.Decimal(0);
+    let nonCashSum = new Prisma.Decimal(0);
+    let hasCash = false;
+
     const payments = dto.payments.map((p) => {
       const amt = new Prisma.Decimal(p.amount);
       paySum = paySum.plus(amt);
+
+      if (p.method === 'CASH') hasCash = true;
+      else nonCashSum = nonCashSum.plus(amt);
+
       return {
         method: p.method as PaymentMethod,
         amount: amt,
@@ -167,10 +144,23 @@ export class PosService {
       };
     });
 
-    if (!paySum.eq(total)) {
+    if (paySum.lt(total)) {
       throw new BadRequestException(
-        `Suma de pagos (${paySum.toString()}) no coincide con total (${total.toString()})`,
+        `Suma de pagos (${paySum.toString()}) no alcanza el total (${total.toString()})`,
       );
+    }
+
+    if (paySum.gt(total)) {
+      if (!hasCash) {
+        throw new BadRequestException(
+          'Si hay vuelto, debe existir al menos un pago CASH',
+        );
+      }
+      if (nonCashSum.gt(total)) {
+        throw new BadRequestException(
+          'El vuelto solo puede provenir de CASH (pagos no-CASH exceden el total)',
+        );
+      }
     }
 
     const productIds = [...new Set(dto.items.map((i) => i.product_id))];
@@ -266,7 +256,7 @@ export class PosService {
   }
 
   async getSale(id: number) {
-    return this.prisma.sale.findUnique({
+    const sale = await this.prisma.sale.findUnique({
       where: { id },
       include: {
         items: { include: { product: true } },
@@ -274,5 +264,8 @@ export class PosService {
         cashSession: true,
       },
     });
+
+    if (!sale) throw new NotFoundException('Venta no encontrada');
+    return sale;
   }
 }

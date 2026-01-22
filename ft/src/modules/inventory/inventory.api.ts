@@ -3,6 +3,7 @@ import type {
   Product,
   StockMovementDto,
   StockMovementListResponse,
+  StockMovementResponse,
   StockResponse,
   StockMoveResult,
 } from "./types";

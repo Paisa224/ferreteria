@@ -1,36 +1,32 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   createCashRegister,
   listCashRegisters,
+  updateCashRegister,
 } from "../modules/cash/cash.api";
 import type { CashRegister } from "../modules/cash/cash.types";
+import s from "./CashRegistersPage.module.css";
 
 function parseError(err: any) {
   const msg = err?.response?.data?.message;
   if (Array.isArray(msg)) return msg.join(" ");
   if (typeof msg === "string") return msg;
   if (msg?.message) return msg.message;
-  return "Ocurrió un error.";
+  return "Ocurrió un error. Intentá nuevamente.";
 }
 
 export default function CashRegistersPage() {
-  const [items, setItems] = useState<CashRegister[]>([]);
+  const [registers, setRegisters] = useState<CashRegister[]>([]);
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-
-  const activeCount = useMemo(
-    () => items.filter((x) => x.is_active).length,
-    [items],
-  );
 
   async function load() {
     setLoading(true);
     setErr(null);
     try {
       const data = await listCashRegisters();
-      setItems(data);
+      setRegisters(data);
     } catch (e: any) {
       setErr(parseError(e));
     } finally {
@@ -42,109 +38,94 @@ export default function CashRegistersPage() {
     load();
   }, []);
 
-  async function onCreate(e: React.FormEvent) {
-    e.preventDefault();
-    setErr(null);
-
-    const clean = name.trim();
-    if (clean.length < 2) {
+  async function handleCreate() {
+    if (name.trim().length < 2) {
       setErr("El nombre debe tener al menos 2 caracteres.");
       return;
     }
-
-    setSaving(true);
+    setLoading(true);
+    setErr(null);
     try {
-      await createCashRegister({ name: clean });
+      await createCashRegister(name.trim());
       setName("");
       await load();
     } catch (e: any) {
       setErr(parseError(e));
     } finally {
-      setSaving(false);
+      setLoading(false);
+    }
+  }
+
+  async function handleToggle(register: CashRegister) {
+    setLoading(true);
+    setErr(null);
+    try {
+      await updateCashRegister(register.id, { is_active: !register.is_active });
+      await load();
+    } catch (e: any) {
+      setErr(parseError(e));
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    <div className={s.wrap}>
       <div className="card">
-        <div
-          style={{ display: "flex", justifyContent: "space-between", gap: 12 }}
-        >
-          <div>
-            <h1 className="h1">Cajas</h1>
-            <div className="muted">Creación y administración de cajas.</div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div className="muted">Activas</div>
-            <div style={{ fontWeight: 900, fontSize: 18 }}>
-              {activeCount}/{items.length}
-            </div>
-          </div>
+        <div>
+          <h1 className="h1">Administración de Cajas</h1>
+          <div className="muted">Crear y activar/desactivar cajas.</div>
         </div>
-        {err && (
-          <div style={{ color: "var(--danger)", marginTop: 10 }}>{err}</div>
-        )}
-      </div>
-
-      <div className="card">
-        <form
-          onSubmit={onCreate}
-          style={{
-            display: "flex",
-            gap: 10,
-            flexWrap: "wrap",
-            alignItems: "end",
-          }}
-        >
-          <label style={{ flex: "1 1 260px" }}>
-            Nombre
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder='Ej: "Caja Principal"'
-            />
-          </label>
-
-          <button className="btn primary" type="submit" disabled={saving}>
-            {saving ? "Creando…" : "Crear caja"}
-          </button>
-
+        <div className={s.form}>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nombre de caja"
+          />
           <button
-            className="btn"
-            type="button"
-            onClick={load}
+            className="btn primary"
+            onClick={handleCreate}
             disabled={loading}
           >
-            {loading ? "Actualizando…" : "Actualizar"}
+            {loading ? "Guardando…" : "Crear caja"}
           </button>
-        </form>
+        </div>
+        {err && <div className={s.error}>{err}</div>}
       </div>
 
       <div className="card">
-        {loading ? (
-          <div>Cargando…</div>
-        ) : items.length === 0 ? (
-          <div className="muted">No hay cajas creadas.</div>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Nombre</th>
-                <th>Estado</th>
+        <table className={s.table}>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nombre</th>
+              <th>Estado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {registers.map((r) => (
+              <tr key={r.id}>
+                <td>{r.id}</td>
+                <td>{r.name}</td>
+                <td>
+                  <span
+                    className={`${s.badge} ${
+                      r.is_active ? s.badgeActive : s.badgeInactive
+                    }`}
+                  >
+                    {r.is_active ? "Activa" : "Inactiva"}
+                  </span>
+                </td>
+                <td>
+                  <button className="btn" onClick={() => handleToggle(r)}>
+                    {r.is_active ? "Desactivar" : "Activar"}
+                  </button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {items.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.id}</td>
-                  <td style={{ fontWeight: 800 }}>{r.name}</td>
-                  <td>{r.is_active ? "Activa" : "Inactiva"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

@@ -7,7 +7,6 @@ import {
   listCashMovements,
   listCashRegisters,
   listDenominations,
-  listOpenSessions,
   myOpenSession,
   openCashSession,
 } from "../modules/cash/cash.api";
@@ -22,7 +21,6 @@ import { CashOpenForm } from "../modules/cash/CashOpenForm";
 import { CashMovements } from "../modules/cash/CashMovements";
 import { CashCountForm } from "../modules/cash/CashCountForm";
 import { CashSummaryCard } from "../modules/cash/CashSummaryCard";
-import { OpenSessionsCard } from "../modules/cash/OpenSessionsCard";
 import { formatDateTime, formatMoney } from "../modules/cash/cash.utils";
 import s from "./CashPage.module.css";
 
@@ -44,7 +42,6 @@ export default function CashPage() {
   const [movements, setMovements] = useState<CashMovement[]>([]);
   const [lastCount, setLastCount] = useState<CashCount | null>(null);
   const [denoms, setDenoms] = useState<number[]>([]);
-  const [openSessions, setOpenSessions] = useState<CashSession[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -67,28 +64,30 @@ export default function CashPage() {
     setLoading(true);
     setErr(null);
     try {
-      const [registerData, sessionData, denomData, openData] =
-        await Promise.all([
-          listCashRegisters().catch(() => []),
-          myOpenSession(),
-          listDenominations().catch(() => [
-            1000, 2000, 5000, 10000, 20000, 50000, 100000,
-          ]),
-          listOpenSessions().catch(() => []),
-        ]);
-
+      const [registerData, sessionData, denomData] = await Promise.all([
+        listCashRegisters().catch(() => []),
+        myOpenSession(),
+        listDenominations().catch(() => [
+          1000, 2000, 5000, 10000, 20000, 50000, 100000,
+        ]),
+      ]);
       setRegisters(registerData);
       setSession(sessionData);
       setDenoms(denomData);
-      setOpenSessions(openData);
-
-      if (sessionData) {
-        const [sum, movs] = await Promise.all([
-          getCashSummary(sessionData.id),
-          listCashMovements(sessionData.id),
-        ]);
-        setSummary(sum);
-        setMovements(movs);
+      if (sessionData && (sessionData as any).id != null) {
+        const sessionId = Number((sessionData as any).id);
+        if (sessionId && !Number.isNaN(sessionId)) {
+          const [sum, movs] = await Promise.all([
+            getCashSummary(sessionId),
+            listCashMovements(sessionId),
+          ]);
+          setSummary(sum);
+          setMovements(movs);
+        } else {
+          setSummary(null);
+          setMovements([]);
+          setLastCount(null);
+        }
       } else {
         setSummary(null);
         setMovements([]);
@@ -105,15 +104,6 @@ export default function CashPage() {
     bootstrap();
   }, []);
 
-  async function refreshOpenSessions() {
-    try {
-      const openData = await listOpenSessions();
-      setOpenSessions(openData);
-    } catch {
-      setOpenSessions([]);
-    }
-  }
-
   async function handleOpen(dto: {
     cash_register_id: number;
     opening_amount: number;
@@ -122,17 +112,22 @@ export default function CashPage() {
     setErr(null);
     try {
       const data = await openCashSession(dto);
+
+      const sessionId = Number((data as any)?.id);
+      if (!sessionId || Number.isNaN(sessionId)) {
+        setErr("El backend no devolvió un id de sesión válido al abrir caja.");
+        return;
+      }
+
       setSession(data);
 
       const [sum, movs] = await Promise.all([
-        getCashSummary(data.id),
-        listCashMovements(data.id),
+        getCashSummary(sessionId),
+        listCashMovements(sessionId),
       ]);
       setSummary(sum);
       setMovements(movs);
       setLastCount(null);
-
-      await refreshOpenSessions();
     } catch (e: any) {
       setErr(parseError(e));
     } finally {
@@ -199,8 +194,6 @@ export default function CashPage() {
       setSummary(null);
       setMovements([]);
       setLastCount(null);
-
-      await refreshOpenSessions();
     } catch (e: any) {
       setCloseErr(parseError(e));
     } finally {
@@ -220,10 +213,6 @@ export default function CashPage() {
           </div>
         </div>
         {err && <div className={s.error}>{err}</div>}
-      </div>
-
-      <div className="card">
-        <OpenSessionsCard sessions={openSessions} />
       </div>
 
       {loading ? (

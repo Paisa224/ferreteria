@@ -7,6 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../prisma/prisma.service';
 import { REQUIRE_PERMISSIONS_KEY } from './require-permissions.decorator';
+import { REQUIRE_ANY_PERMISSIONS_KEY } from './require-any-permissions.decorator';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -20,8 +21,16 @@ export class PermissionsGuard implements CanActivate {
       REQUIRE_PERMISSIONS_KEY,
       [context.getHandler(), context.getClass()],
     );
+    const requiredAny = this.reflector.getAllAndOverride<string[]>(
+      REQUIRE_ANY_PERMISSIONS_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
-    if (!required || required.length === 0) return true;
+    if (
+      (!required || required.length === 0) &&
+      (!requiredAny || requiredAny.length === 0)
+    )
+      return true;
 
     const req = context.switchToHttp().getRequest();
     const user = req.user as { userId?: number; username?: string };
@@ -50,8 +59,15 @@ export class PermissionsGuard implements CanActivate {
       }
     }
 
-    const ok = required.every((p) => userPerms.has(p));
-    if (!ok) throw new ForbiddenException('Permisos insuficientes');
+    if (required && required.length > 0) {
+      const okAll = required.every((p) => userPerms.has(p));
+      if (!okAll) throw new ForbiddenException('Permisos insuficientes');
+    }
+
+    if (requiredAny && requiredAny.length > 0) {
+      const okAny = requiredAny.some((p) => userPerms.has(p));
+      if (!okAny) throw new ForbiddenException('Permisos insuficientes');
+    }
 
     return true;
   }

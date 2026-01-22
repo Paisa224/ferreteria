@@ -1,4 +1,3 @@
-// ft/src/modules/users/RolesEditor.tsx  (reemplazá este archivo completo)
 import { useMemo, useState } from "react";
 import type { Permission, Role, RoleWithPerms } from "./types";
 import s from "./UsersPage.module.css";

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import type { CreateProductDto, Product } from "./types";
+import type { CreateProductDto, Product, UpdateProductDto } from "./types";
 import s from "./ProductForm.module.css";
 
 type Props = {
   product: Product | null;
-  onSave: (dto: CreateProductDto) => Promise<void>;
+  onSave: (dto: CreateProductDto | UpdateProductDto) => Promise<void>;
   onNew: () => void;
   loading?: boolean;
   error?: string | null;

@@ -35,9 +35,6 @@ export class DashboardService {
   async summary(q: SummaryQuery) {
     const { from, to } = this.parseRange(q);
 
-    // =====================
-    // KPIs: Ventas
-    // =====================
     const salesAgg = await this.prisma.sale.aggregate({
       where: { created_at: { gte: from, lte: to } },
       _count: { id: true },
@@ -49,9 +46,6 @@ export class DashboardService {
     const sales_total = salesAgg._sum?.total ?? new Prisma.Decimal(0);
     const avg_ticket = salesAgg._avg?.total ?? new Prisma.Decimal(0);
 
-    // =====================
-    // KPIs: Caja IN/OUT
-    // =====================
     const cashSums = await this.prisma.cashMovement.groupBy({
       by: ['type'],
       where: { created_at: { gte: from, lte: to } },
@@ -68,9 +62,6 @@ export class DashboardService {
 
     const net_total = cash_in_total.minus(cash_out_total);
 
-    // =====================
-    // Cajas abiertas
-    // =====================
     const openSessions = await this.prisma.cashSession.findMany({
       where: { status: CashSessionStatus.OPEN },
       orderBy: { opened_at: 'desc' },
@@ -80,9 +71,6 @@ export class DashboardService {
       },
     });
 
-    // =====================
-    // Stock bajo (sin min_stock): umbral fijo
-    // =====================
     const LOW_STOCK_THRESHOLD = new Prisma.Decimal(5);
 
     const products = await this.prisma.product.findMany({
@@ -114,7 +102,6 @@ export class DashboardService {
 
       lowStock = products
         .map((p) => {
-          // stock = IN + ADJUST + RETURN - OUT - SALE
           const stock = getSum(p.id, 'IN')
             .plus(getSum(p.id, 'ADJUST'))
             .plus(getSum(p.id, 'RETURN'))
@@ -136,9 +123,6 @@ export class DashboardService {
 
     const low_stock_count = lowStock.length;
 
-    // =====================
-    // Charts por día (MySQL raw)
-    // =====================
     const sales_by_day = await this.prisma.$queryRaw<
       Array<{ date: string; count: bigint; total: string }>
     >(Prisma.sql`
@@ -165,9 +149,6 @@ export class DashboardService {
       ORDER BY date ASC
     `);
 
-    // =====================
-    // Tablas
-    // =====================
     const recent_sales = await this.prisma.sale.findMany({
       where: { created_at: { gte: from, lte: to } },
       orderBy: { created_at: 'desc' },

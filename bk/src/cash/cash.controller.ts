@@ -4,19 +4,22 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
+import { RequireAnyPermissions } from '../auth/require-any-permissions.decorator';
 import { RequirePermissions } from '../auth/require-permissions.decorator';
 import { CashService } from './cash.service';
-import { CreateCashRegisterDto } from './dto/create-cash-register.dto';
-import { OpenCashSessionDto } from './dto/open-cash-session.dto';
+import { CashCountDto } from './dto/cash-count.dto';
 import { CloseCashSessionDto } from './dto/close-cash-session.dto';
 import { CreateCashMovementDto } from './dto/create-cash-movement.dto';
-import { CashCountDto } from './dto/cash-count.dto';
+import { CreateCashRegisterDto } from './dto/create-cash-register.dto';
+import { OpenCashSessionDto } from './dto/open-cash-session.dto';
+import { UpdateCashRegisterDto } from './dto/update-cash-register.dto';
 
 @Controller('cash')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -30,9 +33,18 @@ export class CashController {
   }
 
   @Get('registers')
-  @RequirePermissions('cash.manage')
+  @RequireAnyPermissions('cash.manage', 'cash.open', 'cash.count', 'cash.close')
   listRegisters() {
     return this.cash.listRegisters();
+  }
+
+  @Patch('registers/:id')
+  @RequirePermissions('cash.manage')
+  updateRegister(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateCashRegisterDto,
+  ) {
+    return this.cash.updateRegister(id, dto);
   }
 
   @Post('sessions/open')
@@ -42,15 +54,27 @@ export class CashController {
   }
 
   @Get('sessions/current')
-  @RequirePermissions('cash.open')
+  @RequireAnyPermissions('cash.manage', 'cash.open', 'cash.count', 'cash.close')
   currentSessions() {
     return this.cash.currentOpenSessions();
   }
 
   @Get('sessions/my-open')
-  @RequirePermissions('cash.open')
+  @RequireAnyPermissions('cash.open', 'cash.count', 'cash.close')
   myOpen(@Req() req: any) {
     return this.cash.myOpenSession(req.user.userId);
+  }
+
+  @Get('sessions/:id')
+  @RequireAnyPermissions('cash.manage', 'cash.open', 'cash.count', 'cash.close')
+  getSession(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.cash.getSessionById(id, req.user.userId);
+  }
+
+  @Get('sessions/:id/summary')
+  @RequireAnyPermissions('cash.manage', 'cash.open', 'cash.count', 'cash.close')
+  summary(@Param('id', ParseIntPipe) id: number) {
+    return this.cash.sessionSummary(id);
   }
 
   @Post('sessions/:id/close')
@@ -73,10 +97,16 @@ export class CashController {
     return this.cash.addMovement(id, dto, req.user.userId);
   }
 
-  @Get('sessions/:id/summary')
-  @RequirePermissions('cash.open')
-  summary(@Param('id', ParseIntPipe) id: number) {
-    return this.cash.sessionSummary(id);
+  @Get('sessions/:id/movements')
+  @RequireAnyPermissions(
+    'cash.manage',
+    'cash.open',
+    'cash.move',
+    'cash.count',
+    'cash.close',
+  )
+  listMovements(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.cash.listMovements(id, req.user.userId);
   }
 
   @Post('sessions/:id/count')
@@ -89,20 +119,14 @@ export class CashController {
     return this.cash.countCash(id, dto, req.user.userId);
   }
 
-  @Get('sessions/:id/movements')
-  @RequirePermissions('cash.open')
-  listMovements(@Param('id', ParseIntPipe) id: number) {
-    return this.cash.listMovements(id);
-  }
-
   @Get('sessions/:id/counts')
-  @RequirePermissions('cash.open')
-  listCounts(@Param('id', ParseIntPipe) id: number) {
-    return this.cash.listCounts(id);
+  @RequireAnyPermissions('cash.manage', 'cash.open', 'cash.count', 'cash.close')
+  listCounts(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.cash.listCounts(id, req.user.userId);
   }
 
   @Get('denominations')
-  @RequirePermissions('cash.open')
+  @RequireAnyPermissions('cash.manage', 'cash.open', 'cash.count', 'cash.close')
   denominations() {
     return [1000, 2000, 5000, 10000, 20000, 50000, 100000];
   }
