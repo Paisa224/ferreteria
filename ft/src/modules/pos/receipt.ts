@@ -76,9 +76,10 @@ export function buildReceiptHtml(
 
   return `
     <!doctype html>
-    <html>
+    <html lang="es">
       <head>
         <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Ticket Venta #${sale.id}</title>
         <style>
           @page { size: ${settings.paperWidth}; margin: 6mm; }
@@ -140,12 +141,46 @@ export function buildReceiptHtml(
 }
 
 export function openReceiptWindow(html: string) {
-  const win = window.open("", "_blank", "noopener,noreferrer");
-  if (!win) return;
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  win.print();
-  win.close();
+  if (!html || !html.trim()) return;
+
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const win = window.open(url, "_blank");
+  if (!win) {
+    URL.revokeObjectURL(url);
+    return;
+  }
+
+  const cleanup = () => {
+    try {
+      URL.revokeObjectURL(url);
+    } catch {}
+  };
+
+  const doPrint = () => {
+    try {
+      win.focus();
+      win.print();
+    } finally {
+      setTimeout(() => {
+        try {
+          win.close();
+        } catch {}
+        cleanup();
+      }, 300);
+    }
+  };
+
+  const timer = setInterval(() => {
+    try {
+      if (win.document.readyState === "complete") {
+        clearInterval(timer);
+        setTimeout(doPrint, 80);
+      }
+    } catch {
+      clearInterval(timer);
+      setTimeout(doPrint, 500);
+    }
+  }, 50);
 }

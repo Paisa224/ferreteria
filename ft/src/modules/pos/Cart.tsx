@@ -1,5 +1,5 @@
 import type { CartItem } from "./pos.types";
-import { formatMoney, parseMoney, qtyStep, roundQty } from "./pos.utils";
+import { formatMoney, parseMoney, roundQty } from "./pos.utils";
 import s from "./Cart.module.css";
 
 type Props = {
@@ -35,7 +35,6 @@ export function Cart({
       <tbody>
         {items.map((item) => {
           const subtotal = item.qty * item.price;
-          const step = qtyStep(item.product.unit);
 
           return (
             <tr key={item.product.id}>
@@ -58,7 +57,10 @@ export function Cart({
                     inputMode="numeric"
                     value={formatMoney(item.price)}
                     onChange={(e) =>
-                      onChangePrice?.(item.product.id, parseMoney(e.target.value))
+                      onChangePrice?.(
+                        item.product.id,
+                        parseMoney(e.target.value),
+                      )
                     }
                     onBlur={(e) =>
                       onChangePrice?.(
@@ -77,7 +79,7 @@ export function Cart({
                   className="btn"
                   type="button"
                   onClick={() =>
-                    onChangeQty(item.product.id, roundQty(item.qty - step, item.product.unit))
+                    onChangeQty(item.product.id, roundQty(item.qty - 1))
                   }
                 >
                   -
@@ -85,11 +87,21 @@ export function Cart({
 
                 <input
                   type="number"
-                  min={step}
-                  step={step}
+                  inputMode="numeric"
+                  min={1}
+                  step={1}
                   value={item.qty}
                   onChange={(e) =>
-                    onChangeQty(item.product.id, Number(e.target.value))
+                    onChangeQty(
+                      item.product.id,
+                      roundQty(Number(e.target.value)),
+                    )
+                  }
+                  onBlur={(e) =>
+                    onChangeQty(
+                      item.product.id,
+                      roundQty(Number(e.currentTarget.value)),
+                    )
                   }
                 />
 
@@ -97,7 +109,7 @@ export function Cart({
                   className="btn"
                   type="button"
                   onClick={() =>
-                    onChangeQty(item.product.id, roundQty(item.qty + step, item.product.unit))
+                    onChangeQty(item.product.id, roundQty(item.qty + 1))
                   }
                 >
                   +

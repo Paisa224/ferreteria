@@ -11,36 +11,24 @@ export function parseError(err: any) {
   return "Ocurrió un error. Intentá nuevamente.";
 }
 
-const DECIMAL_UNITS = new Set(["KG", "KGS", "L", "LT", "M", "MT"]);
-
-export function normalizeUnit(unit?: string | null) {
-  return (unit ?? "").trim().toUpperCase();
+export function qtyStep(_unit?: string | null) {
+  return 1;
 }
 
-export function isDecimalUnit(unit?: string | null) {
-  return DECIMAL_UNITS.has(normalizeUnit(unit));
+export function qtyDecimals(_unit?: string | null) {
+  return 0;
 }
 
-export function qtyStep(unit?: string | null) {
-  return isDecimalUnit(unit) ? 0.01 : 1;
+export function roundQty(value: number, _unit?: string | null) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.round(value);
 }
 
-export function qtyDecimals(unit?: string | null) {
-  return isDecimalUnit(unit) ? 2 : 0;
-}
-
-export function roundQty(value: number, unit?: string | null) {
-  const decimals = qtyDecimals(unit);
-  const factor = 10 ** decimals;
-  return Math.round(value * factor) / factor;
-}
-
-export function formatQty(value: number, unit?: string | null) {
-  const decimals = qtyDecimals(unit);
+export function formatQty(value: number, _unit?: string | null) {
   return new Intl.NumberFormat("es-PY", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).format(value);
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Math.round(Number(value ?? 0)));
 }
 
 export function paymentMethodLabel(

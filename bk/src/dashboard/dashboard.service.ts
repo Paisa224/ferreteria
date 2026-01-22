@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, CashSessionStatus, CashMovementType } from '@prisma/client';
+import {
+  Prisma,
+  CashSessionStatus,
+  CashMovementType,
+  SaleStatus,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 type SummaryQuery = { from?: string; to?: string };
@@ -15,6 +20,17 @@ function endOfDay(d: Date) {
   return x;
 }
 
+/**
+ * IMPORTANT:
+ * The frontend sends dates as "YYYY-MM-DD".
+ * new Date("YYYY-MM-DD") is parsed as UTC by JS, which shifts the day in -03:00.
+ * Parse it as LOCAL date to avoid off-by-one-day issues.
+ */
+function parseISODateLocal(iso: string) {
+  const [y, m, d] = iso.split('-').map((n) => Number(n));
+  return new Date(y, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0); // local midnight
+}
+
 @Injectable()
 export class DashboardService {
   constructor(private prisma: PrismaService) {}
@@ -25,9 +41,10 @@ export class DashboardService {
     defaultFrom.setDate(defaultFrom.getDate() - 30);
 
     const from = q.from
-      ? startOfDay(new Date(q.from))
+      ? startOfDay(parseISODateLocal(q.from))
       : startOfDay(defaultFrom);
-    const to = q.to ? endOfDay(new Date(q.to)) : endOfDay(now);
+
+    const to = q.to ? endOfDay(parseISODateLocal(q.to)) : endOfDay(now);
 
     return { from, to };
   }
@@ -35,8 +52,14 @@ export class DashboardService {
   async summary(q: SummaryQuery) {
     const { from, to } = this.parseRange(q);
 
+    // Keep dashboard aligned with "paid sales" only
+    const salesWhere = {
+      status: SaleStatus.PAID,
+      created_at: { gte: from, lte: to },
+    };
+
     const salesAgg = await this.prisma.sale.aggregate({
-      where: { created_at: { gte: from, lte: to } },
+      where: salesWhere,
       _count: { id: true },
       _sum: { total: true },
       _avg: { total: true },
@@ -112,6 +135,7 @@ export class DashboardService {
       );
     }
 
+    // Payments are created with Payment.created_at; keep as-is, but bound by same range.
     const paymentsByMethod = await this.prisma.payment.groupBy({
       by: ['method'],
       where: { created_at: { gte: from, lte: to } },
@@ -178,7 +202,8 @@ export class DashboardService {
         COUNT(*) as count,
         COALESCE(SUM(total), 0) as total
       FROM Sale
-      WHERE created_at BETWEEN ${from} AND ${to}
+      WHERE status = 'PAID'
+        AND created_at BETWEEN ${from} AND ${to}
       GROUP BY DATE(created_at)
       ORDER BY date ASC
     `);
@@ -197,7 +222,7 @@ export class DashboardService {
     `);
 
     const recent_sales = await this.prisma.sale.findMany({
-      where: { created_at: { gte: from, lte: to } },
+      where: salesWhere,
       orderBy: { created_at: 'desc' },
       take: 20,
       include: {
